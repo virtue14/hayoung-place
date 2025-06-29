@@ -8,8 +8,6 @@ spring:
     import: optional:file:backend/.env.local[.properties]
 
   data:
-    rest:
-      base-path: /test
     redis:
       host: ${REDIS_HOST}
       port: ${REDIS_PORT}
@@ -27,21 +25,25 @@ spring:
             client-name: Google
             client-id: ${GOOGLE_CLIENT_ID}
             client-secret: ${GOOGLE_CLIENT_SECRET}
-            redirect-uri: ${GOOGLE_URL}
+            redirect-uri: ${GOOGLE_URL:http://localhost:5000/login/oauth2/code/google}
             scope:
-              - openid
               - email
               - profile
             authorization-grant-type: authorization_code
 
 springdoc:
   swagger-ui:
-    operations-sorter: method
-    display-request-duration: true
-    persist-authorization: true
+    servers:
+      - url: ${SWAGGER_SERVER_PROD}
+        description: Production server
+      - url: ${SWAGGER_SERVER_LOCAL}
+        description: Local server
   api-docs:
-    path: /v3/api-docs
+    path: /api-docs
+  default-consumes-media-type: application/json
   default-produces-media-type: application/json
+  paths-to-match:
+    - /api/**
 
 swagger:
   servers:
@@ -53,8 +55,8 @@ cors:
 
 jwt:
   secret: ${JWT_SECRET}
-  access-token-expiration: ${JWT_ACCESS_TOKEN_EXPIRED}
-  refresh-token-expiration: ${JWT_REFRESH_TOKEN_EXPIRED}
+  access-token-expired: ${JWT_ACCESS_TOKEN_EXPIRED}
+  refresh-token-expired: ${JWT_REFRESH_TOKEN_EXPIRED}
 
 app:
   frontend-url: ${FRONTEND_URL}
