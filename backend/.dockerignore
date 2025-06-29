@@ -1,0 +1,16 @@
+/build/
+.gradle/
+*.jar
+*.log
+
+.idea/
+*.iml
+
+.env.local
+
+.DS_Store
+
+.git/
+.gitignore
+
+*.p8
