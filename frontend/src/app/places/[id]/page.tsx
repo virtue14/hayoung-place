@@ -90,7 +90,7 @@ export default function PlaceDetailPage() {
 
     if (isLoading) {
         return (
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+            <div className="mobile-full-height bg-gray-50 flex items-center justify-center mobile-container">
                 <div className="text-center">
                     <div className="inline-block w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
                     <p className="mt-4 text-gray-600">장소 정보를 불러오는 중...</p>
@@ -101,7 +101,7 @@ export default function PlaceDetailPage() {
 
     if (error || !place) {
         return (
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+            <div className="mobile-full-height bg-gray-50 flex items-center justify-center mobile-container">
                 <div className="text-center">
                     <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mb-4 mx-auto">
                         <MapPin className="w-8 h-8 text-gray-400" />
@@ -118,7 +118,7 @@ export default function PlaceDetailPage() {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50">
+        <div className="mobile-full-height bg-gray-50">
             {/* 상단 헤더 */}
             <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-10">
                 <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -142,7 +142,7 @@ export default function PlaceDetailPage() {
                 </div>
             </header>
 
-            <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 mobile-container">
                 {/* 메인 정보 카드 */}
                 <Card className="mb-6 shadow-lg border-0">
                     <CardHeader className="pb-4">

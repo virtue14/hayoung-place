@@ -79,6 +79,9 @@ body {
   html {
     -webkit-text-size-adjust: 100%;
     font-variant-ligatures: none;
+    /* 모바일 브라우저 viewport 높이 문제 해결 */
+    height: 100%;
+    height: -webkit-fill-available;
   }
   
   body {
@@ -86,6 +89,10 @@ body {
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    /* 모바일 브라우저 높이 문제 해결 */
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+    padding-bottom: env(safe-area-inset-bottom);
   }
   
   /* 터치 대상 크기 최적화 */
@@ -230,6 +237,17 @@ body {
     padding-right: env(safe-area-inset-right);
   }
   
+  /* 모바일 하단 여백 보장 */
+  .mobile-bottom-safe {
+    padding-bottom: calc(1.5rem + env(safe-area-inset-bottom));
+  }
+  
+  /* 모바일 전체 높이 */
+  .mobile-full-height {
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+  }
+  
   /* 모바일 최적화 간격 */
   .gap-mobile {
     @apply gap-2 sm:gap-4 lg:gap-6;
@@ -245,5 +263,17 @@ body {
   
   .py-mobile {
     @apply py-3 sm:py-4 lg:py-6;
+  }
+  
+  /* 모바일 브라우저 스크롤 개선 */
+  @media screen and (max-width: 768px) {
+    .mobile-scroll {
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+    }
+    
+    .mobile-container {
+      padding-bottom: calc(2rem + env(safe-area-inset-bottom, 1rem));
+    }
   }
 } 

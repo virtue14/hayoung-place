@@ -68,7 +68,7 @@ export default function ListView() {
         }
     };
 
-    // 클라이언트 사이드 필터링 및 페이징
+    // 클라이언트 사이드 필터링, 정렬 및 페이징
     const applyFiltersAndPaging = () => {
         if (!isDataLoaded) return;
 
@@ -77,6 +77,13 @@ export default function ListView() {
         if (selectedCategory) {
             filtered = allPlaces.filter(place => place.category === selectedCategory);
         }
+
+        // 최신순 정렬 (createdAt 기준 내림차순)
+        filtered = filtered.sort((a, b) => {
+            const dateA = new Date(a.createdAt).getTime();
+            const dateB = new Date(b.createdAt).getTime();
+            return dateB - dateA; // 최신 것이 먼저 오도록
+        });
 
         // 페이징 처리
         const itemsPerPage = 5;
@@ -116,7 +123,7 @@ export default function ListView() {
 
     return (
         <>
-            <div className="min-h-screen bg-gray-50">
+            <div className="mobile-full-height bg-gray-50">
                 {/* 상단 고정 헤더 - 모바일 최적화 */}
                 <header className="fixed top-0 left-0 right-0 bg-white/95 backdrop-blur-md shadow-sm z-20 border-b border-gray-100">
                     <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8">
@@ -138,7 +145,7 @@ export default function ListView() {
                 {/* 탭 네비게이션 */}
                 <TabNavigation className="fixed top-14 sm:top-16 left-0 right-0 z-10" />
 
-                <main className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 pt-[104px] sm:pt-[112px] pb-6 sm:pb-8">
+                <main className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 pt-[104px] sm:pt-[112px] mobile-container">
                     {/* 카테고리 필터 - 모바일 최적화 */}
                     <div className="mb-4 sm:mb-6 mt-4 sm:mt-6">
                         <div className="flex justify-start gap-1.5 sm:gap-2 md:gap-3 overflow-x-auto pb-2 scrollbar-hide">
@@ -169,10 +176,12 @@ export default function ListView() {
                     {/* 장소 수 및 지도 토글 */}
                     <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4 sm:mb-6">
                         <div className="text-center sm:text-left">
-                            <span className="text-sm sm:text-base font-semibold text-gray-700">
-                               {selectedCategory ? `${categoryNames[selectedCategory]}: ` : '전체: '}
-                               총 {totalElements}개의 장소
-                            </span>
+                            <div className="flex flex-col gap-1">
+                                <span className="text-sm sm:text-base font-semibold text-gray-700">
+                                   {selectedCategory ? `${categoryNames[selectedCategory]}: ` : '전체: '}
+                                   총 {totalElements}개의 장소
+                                </span>
+                            </div>
                         </div>
                         
                         <Button 
