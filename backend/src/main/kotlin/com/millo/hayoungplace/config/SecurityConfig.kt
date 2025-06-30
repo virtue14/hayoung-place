@@ -39,15 +39,10 @@ class SecurityConfig(
             .authorizeHttpRequests { auth ->
                 auth
                     .requestMatchers(
-                        "/",
-                        "/error",
-                        "/favicon.ico",
-                        "/v3/api-docs/**",
-                        "/swagger-ui/**",
-                        "/api/auth/**"
+                        "/**",
                     ).permitAll()
                     .requestMatchers("/api/users/me").authenticated()
-                    .anyRequest().authenticated()
+                    .anyRequest().permitAll()
             }
             .oauth2Login { oauth2 ->
                 oauth2
