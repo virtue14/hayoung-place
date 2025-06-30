@@ -27,7 +27,8 @@ export default function KakaoMap({ places, center, level = 9 }: KakaoMapProps) {
 
       // 새로운 마커 추가
       places.forEach((place) => {
-        const position = new window.kakao.maps.LatLng(place.latitude, place.longitude)
+        const [longitude, latitude] = place.location.coordinates
+        const position = new window.kakao.maps.LatLng(latitude, longitude)
         
         const content = document.createElement('div')
         content.className = 'custom-marker marker-animation'
@@ -46,11 +47,11 @@ export default function KakaoMap({ places, center, level = 9 }: KakaoMapProps) {
           const infoWindow = new window.kakao.maps.InfoWindow({
             content: `
               <div class="p-3 min-w-[200px]">
-                <div class="font-medium">${place.placeName}</div>
-                <div class="text-sm text-gray-600">${place.addressName}</div>
+                <div class="font-medium">${place.name}</div>
+                <div class="text-sm text-gray-600">${place.address}</div>
                 <div class="mt-1">
                   <span class="text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
-                    ${place.customCategory}
+                    ${place.category}
                   </span>
                 </div>
               </div>
