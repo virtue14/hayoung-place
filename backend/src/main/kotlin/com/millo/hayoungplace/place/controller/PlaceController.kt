@@ -1,5 +1,6 @@
 package com.millo.hayoungplace.place.controller
 
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.millo.hayoungplace.place.domain.Place
 import com.millo.hayoungplace.place.domain.PlaceCategory
 import com.millo.hayoungplace.place.service.PlaceService
@@ -10,23 +11,24 @@ import jakarta.validation.Valid
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.web.PageableDefault
-import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 
 @Tag(name = "장소 API", description = "장소 정보를 관리하는 API")
 @RestController
-@RequestMapping("/places")
+@RequestMapping("/api/places")
 class PlaceController(
     private val placeService: PlaceService
 ) {
+    private val objectMapper = jacksonObjectMapper()
+
     @Operation(
         summary = "전체 장소 목록 조회",
         description = "등록된 모든 장소 목록을 페이징하여 조회합니다."
     )
     @GetMapping
     fun getAllPlaces(
-        @PageableDefault(size = 20) pageable: Pageable
+        @PageableDefault(size = 5) pageable: Pageable
     ): ResponseEntity<Page<Place>> {
         return ResponseEntity.ok(placeService.getAllPlaces(pageable))
     }
@@ -49,11 +51,12 @@ class PlaceController(
     )
     @GetMapping("/category/{category}")
     fun getPlacesByCategory(
-        @Parameter(description = "조회할 장소 카테고리")
-        @PathVariable category: PlaceCategory,
+        @Parameter(description = "조회할 장소 카테고리 (대소문자 무관)")
+        @PathVariable category: String,
         @PageableDefault(size = 20) pageable: Pageable
     ): ResponseEntity<Page<Place>> {
-        return ResponseEntity.ok(placeService.getPlacesByCategory(category, pageable))
+        val categoryEnum = PlaceCategory.valueOf(category.uppercase())
+        return ResponseEntity.ok(placeService.getPlacesByCategory(categoryEnum, pageable))
     }
 
     @Operation(
@@ -90,10 +93,10 @@ class PlaceController(
     @PostMapping
     fun createPlace(
         @Parameter(description = "등록할 장소 정보")
-        @Valid @RequestBody place: Place
+        @Valid @RequestBody placeData: Map<String, Any>
     ): ResponseEntity<Place> {
-        return ResponseEntity.status(HttpStatus.CREATED)
-            .body(placeService.createPlace(place))
+        val place = placeService.createPlace(placeData, emptyList())
+        return ResponseEntity.ok(place)
     }
 
     @Operation(

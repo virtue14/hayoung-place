@@ -2,14 +2,17 @@ package com.millo.hayoungplace.place.repository
 
 import com.millo.hayoungplace.place.domain.Place
 import com.millo.hayoungplace.place.domain.PlaceCategory
+import com.millo.hayoungplace.user.domain.User
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.mongodb.repository.MongoRepository
 import org.springframework.data.mongodb.repository.Query
+import org.springframework.stereotype.Repository
 
 /**
  * 장소 정보에 대한 데이터베이스 접근을 담당하는 리포지토리
  */
+@Repository
 interface PlaceRepository : MongoRepository<Place, String> {
     /**
      * 카테고리별 장소 목록을 페이징하여 조회합니다.
@@ -45,4 +48,29 @@ interface PlaceRepository : MongoRepository<Place, String> {
      * @return 페이징된 장소 목록
      */
     fun findByNameContainingIgnoreCase(name: String, pageable: Pageable): Page<Place>
+
+    /**
+     * 장소 URL로 기존 등록된 장소가 있는지 확인합니다.
+     * @param placeUrl 확인할 장소 URL
+     * @return 해당 URL로 등록된 장소가 있으면 true
+     */
+    fun existsByPlaceUrl(placeUrl: String): Boolean
+
+    /**
+     * 장소 이름과 주소로 기존 등록된 장소가 있는지 확인합니다.
+     * @param name 장소 이름
+     * @param address 장소 주소
+     * @return 해당 이름과 주소로 등록된 장소가 있으면 true
+     */
+    fun existsByNameAndAddress(name: String, address: String): Boolean
+
+    /**
+     * 장소 URL로 등록된 장소를 찾습니다.
+     * @param placeUrl 장소 URL
+     * @return 해당 URL로 등록된 장소
+     */
+    fun findByPlaceUrl(placeUrl: String): Place?
+
+    fun findAllByOrderByCreatedAtDesc(): List<Place>
+    fun findByCategory(category: PlaceCategory): List<Place>
 }

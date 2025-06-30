@@ -1,20 +1,46 @@
 package com.millo.hayoungplace.place.service
 
+import com.millo.hayoungplace.place.domain.Location
 import com.millo.hayoungplace.place.domain.Place
 import com.millo.hayoungplace.place.domain.PlaceCategory
 import com.millo.hayoungplace.place.repository.PlaceRepository
+import com.millo.hayoungplace.user.domain.User
+import com.millo.hayoungplace.user.domain.AuthProvider
+import com.millo.hayoungplace.user.repository.UserRepository
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
+import org.springframework.security.core.context.SecurityContextHolder
+import org.springframework.security.core.userdetails.UsernameNotFoundException
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import org.springframework.web.multipart.MultipartFile
+import java.nio.file.Files
+import java.nio.file.Paths
+import java.util.*
+
+/**
+ * 중복된 장소 등록 시 발생하는 예외
+ */
+class DuplicatePlaceException(message: String) : RuntimeException(message)
 
 /**
  * 장소 관련 비즈니스 로직을 처리하는 서비스
  */
 @Service
 class PlaceService(
-    private val placeRepository: PlaceRepository
+    private val placeRepository: PlaceRepository,
+    private val userRepository: UserRepository
 ) {
+    // 이미지 저장 경로 설정
+    private val uploadDir = Paths.get("uploads/images")
+
+    init {
+        // 이미지 저장 디렉토리 생성
+        if (!Files.exists(uploadDir)) {
+            Files.createDirectories(uploadDir)
+        }
+    }
+
     /**
      * 모든 장소 목록을 페이징하여 조회합니다.
      * @param pageable 페이징 정보
@@ -74,12 +100,92 @@ class PlaceService(
 
     /**
      * 새로운 장소를 등록합니다.
-     * @param place 등록할 장소 정보
+     * @param placeData 등록할 장소 정보
+     * @param images 장소 이미지 파일 목록 (선택사항)
      * @return 등록된 장소 정보
+     * @throws DuplicatePlaceException 이미 등록된 장소인 경우
      */
     @Transactional
-    fun createPlace(place: Place): Place {
+    fun createPlace(placeData: Map<String, Any>, images: List<MultipartFile>): Place {
+        val name = placeData["name"] as String
+        val address = placeData["address"] as String
+        val placeUrl = placeData["placeUrl"] as String
+
+        // 중복 장소 확인
+        when {
+            placeRepository.existsByPlaceUrl(placeUrl) -> {
+                throw DuplicatePlaceException("이미 등록된 장소입니다.")
+            }
+            placeRepository.existsByNameAndAddress(name, address) -> {
+                throw DuplicatePlaceException("이미 등록된 장소입니다.")
+            }
+        }
+
+        // 현재 로그인한 사용자 정보 가져오기 (비회원 허용)
+        val authentication = SecurityContextHolder.getContext().authentication
+        val currentUser = if (authentication != null && authentication.name != "anonymousUser" && authentication.isAuthenticated) {
+            userRepository.findByEmail(authentication.name)
+        } else {
+            // 비회원 사용자 처리
+            getOrCreateAnonymousUser()
+        }
+
+        // 이미지 파일 저장 및 URL 생성 (이미지가 있는 경우에만)
+        val photos = if (images.isNotEmpty()) {
+            images.map { file ->
+                val fileName = "${UUID.randomUUID()}_${file.originalFilename}"
+                val filePath = uploadDir.resolve(fileName)
+                Files.copy(file.inputStream, filePath)
+                "/images/$fileName"
+            }
+        } else {
+            emptyList()
+        }
+
+        val longitude = when (val lon = placeData["longitude"]) {
+            is Double -> lon
+            is String -> lon.toDoubleOrNull() ?: throw IllegalArgumentException("Invalid longitude")
+            is Number -> lon.toDouble()
+            else -> throw IllegalArgumentException("Invalid longitude")
+        }
+
+        val latitude = when (val lat = placeData["latitude"]) {
+            is Double -> lat
+            is String -> lat.toDoubleOrNull() ?: throw IllegalArgumentException("Invalid latitude")
+            is Number -> lat.toDouble()
+            else -> throw IllegalArgumentException("Invalid latitude")
+        }
+
+        // Place 객체 생성
+        val place = Place(
+            name = name,
+            address = address,
+            location = Location(coordinates = listOf(longitude, latitude)),
+            placeUrl = placeUrl,
+            category = PlaceCategory.valueOf(placeData["category"] as String),
+            description = placeData["description"] as String,
+            photos = photos,
+            createdBy = currentUser?.id ?: throw IllegalStateException("User ID cannot be null")
+        )
+
         return placeRepository.save(place)
+    }
+
+    /**
+     * 익명 사용자를 조회하거나 생성합니다.
+     * @return 익명 사용자 객체
+     */
+    private fun getOrCreateAnonymousUser(): User {
+        return userRepository.findByEmail("anonymous@hayoung-place.com") ?: run {
+            val anonymousUser = User(
+                email = "anonymous@hayoung-place.com",
+                name = "익명 사용자",
+                nickname = "익명",
+                provider = AuthProvider.GOOGLE,
+                providerId = "anonymous"
+            )
+            userRepository.save(anonymousUser)
+        }
     }
 
     /**
@@ -91,10 +197,22 @@ class PlaceService(
      */
     @Transactional
     fun updatePlace(id: String, place: Place): Place {
-        if (!placeRepository.existsById(id)) {
-            throw NoSuchElementException("Place not found with id: $id")
-        }
-        return placeRepository.save(place.copy(id = id))
+        val existingPlace = placeRepository.findById(id)
+            .orElseThrow { NoSuchElementException("Place not found with id: $id") }
+
+        // 수정한 필드만 업데이트
+        val updatedPlace = existingPlace.copy(
+            name = place.name,
+            address = place.address,
+            location = place.location,
+            placeUrl = place.placeUrl,
+            category = place.category,
+            description = place.description,
+            photos = place.photos,
+            updatedAt = java.time.LocalDateTime.now()
+        )
+
+        return placeRepository.save(updatedPlace)
     }
 
     /**
@@ -108,5 +226,12 @@ class PlaceService(
             throw NoSuchElementException("Place not found with id: $id")
         }
         placeRepository.deleteById(id)
+    }
+
+    /**
+     * 모든 장소 목록을 조회합니다.
+     */
+    fun getAllPlaces(): List<Place> {
+        return placeRepository.findAllByOrderByCreatedAtDesc()
     }
 }
