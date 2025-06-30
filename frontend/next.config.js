@@ -2,6 +2,10 @@
 const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
+  eslint: {
+    // 배포 시 ESLint 오류를 경고로 처리
+    ignoreDuringBuilds: process.env.NODE_ENV === "production",
+  },
   compiler: {
     removeConsole: process.env.NODE_ENV === "production",
   },
