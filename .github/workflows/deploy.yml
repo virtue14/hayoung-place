@@ -26,6 +26,11 @@ jobs:
           target: "/home/ec2-user/hayoung-place"
           rm: true
           strip_components: 1
+          exclude: |
+            .git/
+            .github/
+            build/
+            .env
 
       - name: Create .env on AWS server
         uses: appleboy/ssh-action@v1.0.3
