@@ -6,7 +6,15 @@ spring:
     name: hayoung-place
   config:
     import: optional:file:backend/.env.local[.properties]
-
+  cloud:
+    aws:
+      credentials:
+        access-key: ${AWS_ACCESS_KEY}
+        secret-key: ${AWS_SECRET_KEY}
+      region:
+        static: ${AWS_REGION}
+      s3:
+        bucket: ${AWS_S3_BUCKET}
   data:
     redis:
       host: ${REDIS_HOST}
@@ -25,7 +33,7 @@ spring:
             client-name: Google
             client-id: ${GOOGLE_CLIENT_ID}
             client-secret: ${GOOGLE_CLIENT_SECRET}
-            redirect-uri: ${GOOGLE_URL:http://localhost:5000/login/oauth2/code/google}
+            redirect-uri: ${GOOGLE_URL}
             scope:
               - email
               - profile
@@ -33,17 +41,12 @@ spring:
 
 springdoc:
   swagger-ui:
-    servers:
-      - url: ${SWAGGER_SERVER_PROD}
-        description: Production server
-      - url: ${SWAGGER_SERVER_LOCAL}
-        description: Local server
+    operations-sorter: method
+    display-request-duration: true
+    persist-authorization: true
   api-docs:
-    path: /api-docs
-  default-consumes-media-type: application/json
+    path: /v3/api-docs
   default-produces-media-type: application/json
-  paths-to-match:
-    - /api/**
 
 swagger:
   servers:
@@ -51,7 +54,8 @@ swagger:
     prod: ${SWAGGER_SERVER_PROD}
 
 cors:
-  allowed-origins: ${CORS_ALLOWED_ORIGINS}
+  allowed-origins:
+    - ${CORS_ALLOWED_ORIGINS}
 
 jwt:
   secret: ${JWT_SECRET}
