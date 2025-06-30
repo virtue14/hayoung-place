@@ -10,7 +10,7 @@ services:
     depends_on:
       - redis
     env_file:
-      - .env.docker
+      - backend/.env.docker
     networks:
       - backend
 
