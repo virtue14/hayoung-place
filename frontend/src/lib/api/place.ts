@@ -5,9 +5,14 @@ import { Page, Place, PlaceCategory } from '@/types/place'
  * 등록된 모든 장소 목록을 조회합니다.
  * @param page 페이지 번호 (0부터 시작)
  * @param size 페이지 크기
+ * @param category 카테고리 필터 (선택사항)
  */
-export const getAllPlaces = async (page: number = 0, size: number = 5): Promise<Page<Place>> => {
-    const response = await api.get<Page<Place>>(`/api/places?page=${page}&size=${size}`)
+export const getAllPlaces = async (page: number = 0, size: number = 5, category?: PlaceCategory | null): Promise<Page<Place>> => {
+    let url = `/api/places?page=${page}&size=${size}`
+    if (category) {
+        url += `&category=${category}`
+    }
+    const response = await api.get<Page<Place>>(url)
     return response.data
 }
 

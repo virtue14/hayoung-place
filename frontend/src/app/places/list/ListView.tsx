@@ -44,45 +44,60 @@ export default function ListView() {
     const [totalPages, setTotalPages] = useState(0)
     const [totalElements, setTotalElements] = useState(0)
     const [isLoading, setIsLoading] = useState(false)
+    const [isDataLoaded, setIsDataLoaded] = useState(false)
 
     const handlePlaceAdded = (newPlace: Place) => {
-        // 새 장소가 추가되면 첫 페이지로 이동하고 다시 로드
-        setCurrentPage(0);
-        fetchPlaces(0, selectedCategory);
+        // 새 장소가 추가되면 전체 데이터를 다시 로드
+        loadAllPlaces();
         setIsModalOpen(false);
     };
 
-    // 데이터 로딩
-    const fetchPlaces = async (page: number = 0, category: PlaceCategory | null = null) => {
+    // 전체 데이터 로딩 (한 번만)
+    const loadAllPlaces = async () => {
         setIsLoading(true);
         try {
-            const pageData = await getAllPlaces(page, 5); // 페이지당 5개
+            // 전체 데이터를 한 번에 가져옴 (백엔드 카테고리 필터가 작동하지 않음)
+            const pageData = await getAllPlaces(0, 1000); // 충분히 큰 size로 전체 데이터 가져오기
             setAllPlaces(pageData.content);
-            setFilteredPlaces(pageData.content);
-            setTotalPages(pageData.totalPages);
-            setTotalElements(pageData.totalElements);
-            setCurrentPage(page);
+            setIsDataLoaded(true);
         } catch (error) {
             console.error("장소 목록을 불러오는데 실패했습니다.", error)
             setAllPlaces([]);
-            setFilteredPlaces([]);
-            setTotalPages(0);
-            setTotalElements(0);
         } finally {
             setIsLoading(false);
         }
     };
 
+    // 클라이언트 사이드 필터링 및 페이징
+    const applyFiltersAndPaging = () => {
+        if (!isDataLoaded) return;
+
+        // 카테고리 필터링
+        let filtered = allPlaces;
+        if (selectedCategory) {
+            filtered = allPlaces.filter(place => place.category === selectedCategory);
+        }
+
+        // 페이징 처리
+        const itemsPerPage = 5;
+        const startIndex = currentPage * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        const paginatedContent = filtered.slice(startIndex, endIndex);
+
+        setFilteredPlaces(paginatedContent);
+        setTotalElements(filtered.length);
+        setTotalPages(Math.ceil(filtered.length / itemsPerPage));
+    };
+
+    // 초기 데이터 로딩
     useEffect(() => {
-        fetchPlaces(0, selectedCategory);
+        loadAllPlaces();
     }, []);
 
-    // 카테고리 필터링 로직
+    // 카테고리나 페이지 변경 시 필터링 적용
     useEffect(() => {
-        // 카테고리가 변경되면 첫 페이지로 이동
-        setCurrentPage(0);
-        fetchPlaces(0, selectedCategory);
-    }, [selectedCategory]);
+        applyFiltersAndPaging();
+    }, [allPlaces, selectedCategory, currentPage, isDataLoaded]);
     
     const handleCategoryClick = (category: PlaceCategory) => {
         if (selectedCategory === category) {
@@ -90,11 +105,12 @@ export default function ListView() {
         } else {
             setSelectedCategory(category);
         }
+        setCurrentPage(0); // 카테고리 변경 시 첫 페이지로 이동
     }
 
     const handlePageChange = (newPage: number) => {
         if (newPage >= 0 && newPage < totalPages) {
-            fetchPlaces(newPage, selectedCategory);
+            setCurrentPage(newPage);
         }
     };
 
