@@ -2,10 +2,12 @@ package com.millo.hayoungplace.user.repository
 
 import com.millo.hayoungplace.user.domain.User
 import org.springframework.data.mongodb.repository.MongoRepository
+import org.springframework.stereotype.Repository
 
 /**
  * 사용자 정보에 대한 데이터베이스 접근을 담당하는 리포지토리
  */
+@Repository
 interface UserRepository : MongoRepository<User, String> {
     /**
      * 이메일로 사용자를 조회합니다.
