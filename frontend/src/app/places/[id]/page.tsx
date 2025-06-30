@@ -208,7 +208,7 @@ export default function PlaceDetailPage() {
                         {/* 지도 영역 */}
                         <div>
                             <h3 className="text-lg font-semibold text-gray-900 mb-3">지도</h3>
-                            <div className="w-full h-64 sm:h-80 rounded-lg overflow-hidden border border-gray-200 shadow-sm">
+                            <div className="w-full h-[300px] sm:h-[350px] rounded-lg overflow-hidden border border-gray-200 shadow-sm">
                                 <PlaceDetailMap place={place} className="rounded-lg" />
                             </div>
                         </div>

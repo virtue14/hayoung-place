@@ -102,7 +102,7 @@ export default function PlaceDetailMap({ place, className = '' }: PlaceDetailMap
   return (
     <div 
       ref={mapRef} 
-      className={`w-full h-full ${className}`}
+      className={`kakao-map-container ${className}`}
     />
   )
 } 

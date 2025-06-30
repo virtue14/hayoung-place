@@ -172,7 +172,7 @@ export default function ListView() {
 
                     {/* 지도 - 모바일 최적화 */}
                     {isMapOpen && (
-                        <div className="mb-4 sm:mb-6 h-[50vh] sm:h-[60vh] md:h-[500px] rounded-lg sm:rounded-xl overflow-hidden shadow-lg border border-gray-200">
+                        <div className="mb-4 sm:mb-6 h-[350px] sm:h-[400px] md:h-[500px] rounded-lg sm:rounded-xl overflow-hidden shadow-lg border border-gray-200">
                             <MapView places={filteredPlaces} />
                         </div>
                     )}

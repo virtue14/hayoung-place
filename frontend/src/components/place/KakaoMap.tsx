@@ -75,7 +75,7 @@ export default function KakaoMap({ places, center, level = 9 }: KakaoMapProps) {
   return (
     <div 
       ref={mapRef} 
-      className="w-full h-full"
+      className="kakao-map-container"
     />
   )
 } 
