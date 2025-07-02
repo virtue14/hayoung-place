@@ -38,6 +38,9 @@ data class Place(
     /** 조회수 */
     val viewCount: Int = 0,
 
+    /** 댓글 수 */
+    val commentCount: Long = 0,
+
     /** 글 수정/삭제를 위한 비밀번호 (해시화되어 저장) */
     val password: String,
 

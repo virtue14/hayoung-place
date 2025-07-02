@@ -119,6 +119,31 @@ class PlaceService(
     }
 
     /**
+     * 장소의 댓글 수를 업데이트합니다.
+     * @param id 댓글 수를 업데이트할 장소 ID
+     * @param commentCount 새로운 댓글 수
+     * @return 댓글 수가 업데이트된 장소 정보
+     * @throws NoSuchElementException 해당 ID의 장소가 없는 경우
+     */
+    @Transactional
+    fun updateCommentCount(id: String, commentCount: Long): Place {
+        logger.info("Updating comment count for place: $id to $commentCount")
+
+        val place = placeRepository.findById(id)
+            .orElseThrow { NoSuchElementException("Place not found with id: $id") }
+
+        val updatedPlace = place.copy(
+            commentCount = commentCount
+            // updatedAt은 변경하지 않음 (댓글 수 증가는 정보 수정이 아님)
+        )
+
+        val savedPlace = placeRepository.save(updatedPlace)
+        logger.info("Updated comment count for place $id: ${savedPlace.commentCount}")
+
+        return savedPlace
+    }
+
+    /**
      * 카테고리별 장소 목록을 조회합니다.
      * @param category 조회할 장소 카테고리
      * @param pageable 페이징 정보
