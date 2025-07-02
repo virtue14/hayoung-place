@@ -1,5 +1,5 @@
 import { api } from './axios'
-import { Page, Place, PlaceCategory } from '@/types/place'
+import { Page, Place, PlaceCategory, SubCategory } from '@/types/place'
 
 /**
  * 등록된 모든 장소 목록을 조회합니다.
@@ -36,14 +36,7 @@ interface CreatePlaceRequest {
     password: string;
 }
 
-interface UpdatePlaceRequest extends CreatePlaceRequest {
-    password: string;
-}
 
-interface PasswordVerifyResponse {
-    valid: boolean;
-    message: string;
-}
 
 /**
  * 새로운 장소를 등록합니다.
@@ -63,8 +56,10 @@ export const createPlace = async (placeData: CreatePlaceRequest): Promise<Place>
  * @param id 장소 ID
  * @param password 비밀번호
  */
-export const verifyPlacePassword = async (id: string, password: string): Promise<PasswordVerifyResponse> => {
-    const response = await api.post<PasswordVerifyResponse>(`/api/places/${id}/verify-password`, { password });
+export const verifyPlacePassword = async (placeId: string, password: string): Promise<void> => {
+    const response = await api.post(`/api/places/${placeId}/verify-password`, {
+        password
+    });
     return response.data;
 };
 
@@ -73,8 +68,16 @@ export const verifyPlacePassword = async (id: string, password: string): Promise
  * @param id 장소 ID
  * @param placeData 수정할 장소 정보 (비밀번호 포함)
  */
-export const updatePlace = async (id: string, placeData: UpdatePlaceRequest): Promise<Place> => {
-    const response = await api.put<Place>(`/api/places/${id}`, placeData);
+export const updatePlace = async (
+    placeId: string, 
+    updateData: {
+        category: PlaceCategory;
+        subCategory: SubCategory;
+        description: string;
+        password: string;
+    }
+): Promise<Place> => {
+    const response = await api.put<Place>(`/api/places/${placeId}`, updateData);
     return response.data;
 };
 
