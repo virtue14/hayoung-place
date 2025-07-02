@@ -35,11 +35,14 @@ data class Place(
     /** 장소 사진 URL 목록 */
     val photos: List<String>,
 
-    /** 좋아요 수 */
-    val likesCount: Int = 0,
+    /** 조회수 */
+    val viewCount: Int = 0,
 
     /** 장소를 등록한 사용자 ID */
     val createdBy: String,
+
+    /** 글 수정/삭제를 위한 비밀번호 (해시화되어 저장) */
+    val password: String,
 
     /** 생성일시 */
     val createdAt: LocalDateTime = LocalDateTime.now(),
