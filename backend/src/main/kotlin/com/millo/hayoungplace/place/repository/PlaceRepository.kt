@@ -65,8 +65,7 @@ interface PlaceRepository : MongoRepository<Place, String> {
      */
     fun findByPlaceUrl(placeUrl: String): Place?
 
-    fun findAllByOrderByCreatedAtDesc(): List<Place>
-    fun findByCategory(category: PlaceCategory): List<Place>
+
 
     /**
      * 카테고리와 서브카테고리로 장소 목록을 페이징하여 조회합니다.

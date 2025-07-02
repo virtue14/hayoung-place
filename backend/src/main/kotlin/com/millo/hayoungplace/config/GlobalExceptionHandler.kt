@@ -1,6 +1,5 @@
 package com.millo.hayoungplace.config
 
-import com.millo.hayoungplace.place.service.DuplicatePlaceException
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.ExceptionHandler
@@ -18,6 +17,21 @@ data class ErrorResponse(
     val message: String,
     val path: String
 )
+
+/**
+ * 중복된 장소 등록 시 발생하는 예외
+ */
+class DuplicatePlaceException(message: String) : RuntimeException(message)
+
+/**
+ * 장소를 찾을 수 없을 때 발생하는 예외
+ */
+class PlaceNotFoundException(message: String) : RuntimeException(message)
+
+/**
+ * 비밀번호가 일치하지 않을 때 발생하는 예외
+ */
+class InvalidPasswordException(message: String) : RuntimeException(message)
 
 /**
  * 전역 예외 처리를 담당하는 핸들러
@@ -40,6 +54,57 @@ class GlobalExceptionHandler {
             path = request.getDescription(false).removePrefix("uri=")
         )
         return ResponseEntity.status(HttpStatus.CONFLICT).body(errorResponse)
+    }
+
+    /**
+     * 장소를 찾을 수 없는 예외 처리
+     */
+    @ExceptionHandler(PlaceNotFoundException::class)
+    fun handlePlaceNotFoundException(
+        ex: PlaceNotFoundException,
+        request: WebRequest
+    ): ResponseEntity<ErrorResponse> {
+        val errorResponse = ErrorResponse(
+            status = HttpStatus.NOT_FOUND.value(),
+            error = "Place Not Found",
+            message = ex.message ?: "장소를 찾을 수 없습니다.",
+            path = request.getDescription(false).removePrefix("uri=")
+        )
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse)
+    }
+
+    /**
+     * 비밀번호 불일치 예외 처리
+     */
+    @ExceptionHandler(InvalidPasswordException::class)
+    fun handleInvalidPasswordException(
+        ex: InvalidPasswordException,
+        request: WebRequest
+    ): ResponseEntity<ErrorResponse> {
+        val errorResponse = ErrorResponse(
+            status = HttpStatus.FORBIDDEN.value(),
+            error = "Invalid Password",
+            message = ex.message ?: "비밀번호가 일치하지 않습니다.",
+            path = request.getDescription(false).removePrefix("uri=")
+        )
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(errorResponse)
+    }
+
+    /**
+     * Security 예외 처리
+     */
+    @ExceptionHandler(SecurityException::class)
+    fun handleSecurityException(
+        ex: SecurityException,
+        request: WebRequest
+    ): ResponseEntity<ErrorResponse> {
+        val errorResponse = ErrorResponse(
+            status = HttpStatus.FORBIDDEN.value(),
+            error = "Security Error",
+            message = ex.message ?: "접근이 거부되었습니다.",
+            path = request.getDescription(false).removePrefix("uri=")
+        )
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(errorResponse)
     }
 
     /**

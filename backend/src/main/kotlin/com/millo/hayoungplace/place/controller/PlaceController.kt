@@ -6,8 +6,10 @@ import com.millo.hayoungplace.place.domain.PlaceCategory
 import com.millo.hayoungplace.place.domain.SubCategory
 import com.millo.hayoungplace.place.domain.CategorySubCategoryMapping
 import com.millo.hayoungplace.place.dto.PasswordRequest
-import com.millo.hayoungplace.place.service.InvalidPasswordException
+import com.millo.hayoungplace.place.dto.UpdatePlaceRequest
 import com.millo.hayoungplace.place.service.PlaceService
+import com.millo.hayoungplace.config.InvalidPasswordException
+import com.millo.hayoungplace.config.PlaceNotFoundException
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
@@ -20,6 +22,7 @@ import org.springframework.data.domain.Pageable
 import org.springframework.data.web.PageableDefault
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
+import org.springframework.web.multipart.MultipartFile
 
 @Tag(name = "장소 API", description = "장소 정보를 관리하는 API")
 @RestController
@@ -119,65 +122,79 @@ class PlaceController(
     )
     @PostMapping("/{id}/verify-password")
     fun verifyPassword(
-        @Parameter(description = "장소 ID")
+        @Parameter(description = "검증할 장소 ID")
         @PathVariable id: String,
-        @Parameter(description = "비밀번호")
-        @Valid @RequestBody passwordRequest: PasswordRequest
-    ): ResponseEntity<Map<String, Any>> {
+        @RequestBody passwordRequest: PasswordRequest
+    ): ResponseEntity<Map<String, String>> {
         return try {
-            placeService.verifyPlacePassword(id, passwordRequest.password)
-            ResponseEntity.ok(mapOf("valid" to true, "message" to "비밀번호가 확인되었습니다") as Map<String, Any>)
+            placeService.verifyPassword(id, passwordRequest.password)
+            ResponseEntity.ok(mapOf("message" to "비밀번호가 확인되었습니다."))
         } catch (e: InvalidPasswordException) {
-            ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(mapOf("valid" to false, "message" to e.message) as Map<String, Any>)
-        } catch (e: NoSuchElementException) {
-            ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(mapOf("valid" to false, "message" to e.message) as Map<String, Any>)
+            logger.warn("Password verification failed for place ID: $id")
+            ResponseEntity.status(HttpStatus.FORBIDDEN).body(mapOf("error" to e.message!!))
+        } catch (e: PlaceNotFoundException) {
+            logger.error("Place not found for password verification: $id")
+            ResponseEntity.status(HttpStatus.NOT_FOUND).body(mapOf("error" to e.message!!))
+        } catch (e: Exception) {
+            logger.error("Error verifying password for place ID: $id", e)
+            ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(mapOf("error" to "서버에서 오류가 발생했습니다."))
         }
     }
 
     @Operation(
         summary = "장소 정보 수정",
-        description = "기존 장소의 정보를 수정합니다. 비밀번호가 필요합니다."
+        description = "기존 장소의 정보를 수정합니다. 비밀번호 확인이 필요합니다."
     )
     @PutMapping("/{id}")
     fun updatePlace(
         @Parameter(description = "수정할 장소 ID")
         @PathVariable id: String,
-        @Parameter(description = "수정할 장소 정보 (비밀번호 포함)")
-        @Valid @RequestBody placeData: Map<String, Any>
+        @RequestBody updateRequest: UpdatePlaceRequest
     ): ResponseEntity<Any> {
-                return try {
-            val password = placeData["password"] as? String
-                ?: return ResponseEntity.badRequest().body(mapOf("error" to "비밀번호가 필요합니다") as Map<String, Any>)
-
-            val place = placeService.updatePlace(id, placeData, password)
-            ResponseEntity.ok(place)
+        return try {
+            logger.info("Received request to update place with id: $id")
+            val updatedPlace = placeService.updatePlace(id, updateRequest)
+            logger.info("Successfully updated place: ${updatedPlace.name}")
+            ResponseEntity.ok(updatedPlace)
         } catch (e: InvalidPasswordException) {
-            ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(mapOf("error" to e.message) as Map<String, Any>)
-        } catch (e: NoSuchElementException) {
-            ResponseEntity.status(HttpStatus.NOT_FOUND).body(mapOf("error" to e.message) as Map<String, Any>)
+            logger.warn("Unauthorized update attempt for place ID: $id")
+            ResponseEntity.status(HttpStatus.FORBIDDEN).body(mapOf("error" to e.message!!))
+        } catch (e: PlaceNotFoundException) {
+            logger.error("Place not found for update: $id")
+            ResponseEntity.status(HttpStatus.NOT_FOUND).body(mapOf("error" to e.message!!))
+        } catch (e: IllegalArgumentException) {
+            logger.warn("Invalid update data for place ID: $id - ${e.message}")
+            ResponseEntity.badRequest().body(mapOf("error" to e.message!!))
+        } catch (e: Exception) {
+            logger.error("Error updating place with ID: $id", e)
+            ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(mapOf("error" to "서버에서 오류가 발생했습니다."))
         }
     }
 
     @Operation(
         summary = "장소 삭제",
-        description = "등록된 장소를 삭제합니다. 비밀번호가 필요합니다."
+        description = "등록된 장소를 삭제합니다. 비밀번호 확인이 필요합니다."
     )
     @DeleteMapping("/{id}")
     fun deletePlace(
         @Parameter(description = "삭제할 장소 ID")
         @PathVariable id: String,
-        @Parameter(description = "비밀번호")
-        @Valid @RequestBody passwordRequest: PasswordRequest
-    ): ResponseEntity<Map<String, Any>> {
+        @RequestBody passwordRequest: PasswordRequest
+    ): ResponseEntity<Map<String, String>> {
         return try {
+            logger.info("Received request to delete place with id: $id")
             placeService.deletePlace(id, passwordRequest.password)
-            ResponseEntity.ok(mapOf("message" to "장소가 성공적으로 삭제되었습니다") as Map<String, Any>)
+            logger.info("Successfully deleted place with id: $id")
+            ResponseEntity.ok(mapOf("message" to "장소가 성공적으로 삭제되었습니다."))
         } catch (e: InvalidPasswordException) {
-            ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(mapOf("error" to e.message) as Map<String, Any>)
-        } catch (e: NoSuchElementException) {
-            ResponseEntity.status(HttpStatus.NOT_FOUND).body(mapOf("error" to e.message) as Map<String, Any>)
+            logger.warn("Unauthorized delete attempt for place ID: $id")
+            ResponseEntity.status(HttpStatus.FORBIDDEN).body(mapOf("error" to e.message!!))
+        } catch (e: PlaceNotFoundException) {
+            logger.error("Place not found for delete: $id")
+            ResponseEntity.status(HttpStatus.NOT_FOUND).body(mapOf("error" to e.message!!))
+        } catch (e: Exception) {
+            logger.error("Error deleting place with ID: $id", e)
+            ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(mapOf("error" to "서버에서 오류가 발생했습니다."))
         }
     }
 

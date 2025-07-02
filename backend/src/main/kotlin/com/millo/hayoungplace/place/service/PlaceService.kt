@@ -1,11 +1,16 @@
 package com.millo.hayoungplace.place.service
 
-import com.millo.hayoungplace.place.domain.Location
 import com.millo.hayoungplace.place.domain.Place
 import com.millo.hayoungplace.place.domain.PlaceCategory
 import com.millo.hayoungplace.place.domain.SubCategory
 import com.millo.hayoungplace.place.domain.CategorySubCategoryMapping
+import com.millo.hayoungplace.place.domain.Location
+import com.millo.hayoungplace.place.dto.PasswordRequest
+import com.millo.hayoungplace.place.dto.UpdatePlaceRequest
 import com.millo.hayoungplace.place.repository.PlaceRepository
+import com.millo.hayoungplace.config.DuplicatePlaceException
+import com.millo.hayoungplace.config.PlaceNotFoundException
+import com.millo.hayoungplace.config.InvalidPasswordException
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.data.domain.Page
@@ -13,23 +18,17 @@ import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.multipart.MultipartFile
+import java.io.File
+import java.io.IOException
 import java.nio.file.Files
+import java.nio.file.Path
 import java.nio.file.Paths
 import java.security.MessageDigest
-import java.util.*
+import java.time.LocalDateTime
+import java.util.UUID
 
 /**
- * 중복된 장소 등록 시 발생하는 예외
- */
-class DuplicatePlaceException(message: String) : RuntimeException(message)
-
-/**
- * 비밀번호가 일치하지 않을 때 발생하는 예외
- */
-class InvalidPasswordException(message: String) : RuntimeException(message)
-
-/**
- * 장소 관련 비즈니스 로직을 처리하는 서비스
+ * 장소 관련 비즈니스 로직을 처리하는 서비스 클래스
  */
 @Service
 class PlaceService(
@@ -45,9 +44,8 @@ class PlaceService(
      * @return 해시화된 비밀번호
      */
     private fun hashPassword(password: String): String {
-        val digest = MessageDigest.getInstance("SHA-256")
-        val hash = digest.digest(password.toByteArray())
-        return hash.joinToString("") { "%02x".format(it) }
+        val bytes = MessageDigest.getInstance("SHA-256").digest(password.toByteArray())
+        return bytes.fold("") { str, it -> str + "%02x".format(it) }
     }
 
     /**
@@ -56,7 +54,7 @@ class PlaceService(
      * @param hashedPassword 저장된 해시화된 비밀번호
      * @return 비밀번호 일치 여부
      */
-    private fun verifyPassword(inputPassword: String, hashedPassword: String): Boolean {
+    private fun checkPassword(inputPassword: String, hashedPassword: String): Boolean {
         return hashPassword(inputPassword) == hashedPassword
     }
 
@@ -74,26 +72,26 @@ class PlaceService(
      * ID로 특정 장소를 조회합니다.
      * @param id 조회할 장소 ID
      * @return 조회된 장소 정보
-     * @throws NoSuchElementException 해당 ID의 장소가 없는 경우
+     * @throws PlaceNotFoundException 해당 ID의 장소가 없는 경우
      */
     @Transactional(readOnly = true)
     fun getPlaceById(id: String): Place {
         return placeRepository.findById(id)
-            .orElseThrow { NoSuchElementException("Place not found with id: $id") }
+            .orElseThrow { PlaceNotFoundException("장소를 찾을 수 없습니다. ID: $id") }
     }
 
-        /**
+    /**
      * 장소 조회수를 증가시킵니다.
      * @param id 조회수를 증가시킬 장소 ID
      * @return 조회수가 증가된 장소 정보
-     * @throws NoSuchElementException 해당 ID의 장소가 없는 경우
+     * @throws PlaceNotFoundException 해당 ID의 장소가 없는 경우
      */
     @Transactional
     fun incrementViewCount(id: String): Place {
         logger.info("Incrementing view count for place: $id")
 
         val place = placeRepository.findById(id)
-            .orElseThrow { NoSuchElementException("Place not found with id: $id") }
+            .orElseThrow { PlaceNotFoundException("장소를 찾을 수 없습니다. ID: $id") }
 
         logger.info("Current view count for place $id: ${place.viewCount}")
 
@@ -113,14 +111,14 @@ class PlaceService(
      * @param id 댓글 수를 업데이트할 장소 ID
      * @param commentCount 새로운 댓글 수
      * @return 댓글 수가 업데이트된 장소 정보
-     * @throws NoSuchElementException 해당 ID의 장소가 없는 경우
+     * @throws PlaceNotFoundException 해당 ID의 장소가 없는 경우
      */
     @Transactional
     fun updateCommentCount(id: String, commentCount: Long): Place {
         logger.info("Updating comment count for place: $id to $commentCount")
 
         val place = placeRepository.findById(id)
-            .orElseThrow { NoSuchElementException("Place not found with id: $id") }
+            .orElseThrow { PlaceNotFoundException("장소를 찾을 수 없습니다. ID: $id") }
 
         val updatedPlace = place.copy(
             commentCount = commentCount
@@ -246,101 +244,80 @@ class PlaceService(
         return placeRepository.save(place)
     }
 
-
-
     /**
-     * 비밀번호를 검증합니다.
-     * @param id 장소 ID
-     * @param inputPassword 입력된 비밀번호
-     * @throws NoSuchElementException 해당 ID의 장소가 없는 경우
+     * 장소 비밀번호 검증
+     * @param placeId 장소 ID
+     * @param password 확인할 비밀번호
+     * @throws PlaceNotFoundException 장소를 찾을 수 없는 경우
      * @throws InvalidPasswordException 비밀번호가 일치하지 않는 경우
      */
     @Transactional(readOnly = true)
-    fun verifyPlacePassword(id: String, inputPassword: String) {
-        val place = placeRepository.findById(id)
-            .orElseThrow { NoSuchElementException("Place not found with id: $id") }
+    fun verifyPassword(placeId: String, password: String) {
+        val place = placeRepository.findById(placeId)
+            .orElseThrow { PlaceNotFoundException("장소를 찾을 수 없습니다.") }
 
-        if (!verifyPassword(inputPassword, place.password)) {
-            throw InvalidPasswordException("비밀번호가 일치하지 않습니다")
+        if (!checkPassword(password, place.password)) {
+            throw InvalidPasswordException("비밀번호가 일치하지 않습니다.")
         }
     }
 
     /**
-     * 기존 장소 정보를 수정합니다.
-     * @param id 수정할 장소 ID
-     * @param placeData 수정할 장소 정보
-     * @param password 비밀번호
+     * 장소 정보를 수정합니다.
+     * @param placeId 수정할 장소 ID
+     * @param updateRequest 수정 정보
      * @return 수정된 장소 정보
-     * @throws NoSuchElementException 해당 ID의 장소가 없는 경우
+     * @throws PlaceNotFoundException 장소를 찾을 수 없는 경우
      * @throws InvalidPasswordException 비밀번호가 일치하지 않는 경우
      */
     @Transactional
-    fun updatePlace(id: String, placeData: Map<String, Any>, password: String): Place {
-        val existingPlace = placeRepository.findById(id)
-            .orElseThrow { NoSuchElementException("Place not found with id: $id") }
+    fun updatePlace(placeId: String, updateRequest: UpdatePlaceRequest): Place {
+        val existingPlace = placeRepository.findById(placeId)
+            .orElseThrow { PlaceNotFoundException("장소를 찾을 수 없습니다.") }
 
         // 비밀번호 검증
-        if (!verifyPassword(password, existingPlace.password)) {
-            throw InvalidPasswordException("비밀번호가 일치하지 않습니다")
+        if (!checkPassword(updateRequest.password, existingPlace.password)) {
+            throw InvalidPasswordException("비밀번호가 일치하지 않습니다.")
         }
 
-        // 카테고리 및 서브카테고리 검증
-        val category = PlaceCategory.valueOf(placeData["category"] as String)
-        val subCategory = if (placeData.containsKey("subCategory") && placeData["subCategory"] != null) {
-            val subCat = SubCategory.valueOf(placeData["subCategory"] as String)
-            // 카테고리와 서브카테고리 매핑 검증
-            if (!CategorySubCategoryMapping.isValidSubCategory(category, subCat)) {
-                throw IllegalArgumentException("유효하지 않은 카테고리-서브카테고리 조합입니다")
-            }
-            subCat
-        } else {
-            SubCategory.NONE
+        // 카테고리와 서브카테고리 매핑 검증
+        if (!CategorySubCategoryMapping.isValidSubCategory(updateRequest.category, updateRequest.subCategory)) {
+            throw IllegalArgumentException("선택한 카테고리에 유효하지 않은 서브카테고리입니다.")
         }
 
-        // 수정한 필드만 업데이트
+        // 장소 정보 업데이트
         val updatedPlace = existingPlace.copy(
-            name = placeData["name"] as String,
-            address = placeData["address"] as String,
-            location = Location(
-                coordinates = listOf(
-                    (placeData["longitude"] as Number).toDouble(),
-                    (placeData["latitude"] as Number).toDouble()
-                )
-            ),
-            placeUrl = placeData["placeUrl"] as String,
-            category = category,
-            subCategory = subCategory,
-            description = placeData["description"] as String,
-            updatedAt = java.time.LocalDateTime.now()
+            category = updateRequest.category,
+            subCategory = updateRequest.subCategory,
+            description = updateRequest.description,
+            updatedAt = LocalDateTime.now()
         )
 
-        return placeRepository.save(updatedPlace)
+        logger.info("Updating place with ID: $placeId")
+        val savedPlace = placeRepository.save(updatedPlace)
+        logger.info("Successfully updated place: ${savedPlace.name}")
+
+        return savedPlace
     }
 
     /**
      * 장소를 삭제합니다.
      * @param id 삭제할 장소 ID
      * @param password 비밀번호
-     * @throws NoSuchElementException 해당 ID의 장소가 없는 경우
+     * @throws PlaceNotFoundException 해당 ID의 장소가 없는 경우
      * @throws InvalidPasswordException 비밀번호가 일치하지 않는 경우
      */
     @Transactional
     fun deletePlace(id: String, password: String) {
         val place = placeRepository.findById(id)
-            .orElseThrow { NoSuchElementException("Place not found with id: $id") }
+            .orElseThrow { PlaceNotFoundException("장소를 찾을 수 없습니다.") }
 
-        // 비밀번호 검증
-        if (!verifyPassword(password, place.password)) {
-            throw InvalidPasswordException("비밀번호가 일치하지 않습니다")
+        if (!checkPassword(password, place.password)) {
+            throw InvalidPasswordException("비밀번호가 일치하지 않습니다.")
         }
 
         placeRepository.deleteById(id)
+        logger.info("Deleted place with ID: $id")
     }
 
-    /**
-     * 모든 장소 목록을 조회합니다.
-     */
-    fun getAllPlaces(): List<Place> {
-        return placeRepository.findAllByOrderByCreatedAtDesc()
-    }
+
 }
