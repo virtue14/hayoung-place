@@ -45,7 +45,9 @@ export default function AddPlaceModal({ isOpen, onClose, onPlaceAdded }: AddPlac
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const mapContainerRef = useRef<HTMLDivElement>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mapRef = useRef<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const markerRef = useRef<any>(null);
   
   // 검색어 디바운스
@@ -194,7 +196,7 @@ export default function AddPlaceModal({ isOpen, onClose, onPlaceAdded }: AddPlac
         // HTTP 400 Bad Request - 잘못된 요청
         const errorMessage = errorResponse.response?.data?.message || '잘못된 요청입니다. 입력 정보를 확인해주세요.';
         alert(errorMessage);
-      } else if (errorResponse.response?.status >= 500) {
+      } else if (errorResponse.response?.status && errorResponse.response.status >= 500) {
         // HTTP 5xx - 서버 오류
         alert('서버에서 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
       } else {
