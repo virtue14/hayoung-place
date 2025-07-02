@@ -4,13 +4,8 @@ import com.millo.hayoungplace.place.domain.Location
 import com.millo.hayoungplace.place.domain.Place
 import com.millo.hayoungplace.place.domain.PlaceCategory
 import com.millo.hayoungplace.place.repository.PlaceRepository
-import com.millo.hayoungplace.user.domain.User
-import com.millo.hayoungplace.user.domain.AuthProvider
-import com.millo.hayoungplace.user.repository.UserRepository
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
-import org.springframework.security.core.context.SecurityContextHolder
-import org.springframework.security.core.userdetails.UsernameNotFoundException
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.multipart.MultipartFile
@@ -28,8 +23,7 @@ class DuplicatePlaceException(message: String) : RuntimeException(message)
  */
 @Service
 class PlaceService(
-    private val placeRepository: PlaceRepository,
-    private val userRepository: UserRepository
+    private val placeRepository: PlaceRepository
 ) {
     // 이미지 저장 경로 설정
     private val uploadDir = Paths.get("uploads/images")
@@ -121,14 +115,8 @@ class PlaceService(
             }
         }
 
-        // 현재 로그인한 사용자 정보 가져오기 (비회원 허용)
-        val authentication = SecurityContextHolder.getContext().authentication
-        val currentUser = if (authentication != null && authentication.name != "anonymousUser" && authentication.isAuthenticated) {
-            userRepository.findByEmail(authentication.name)
-        } else {
-            // 비회원 사용자 처리
-            getOrCreateAnonymousUser()
-        }
+        // 모든 사용자가 익명으로 장소를 등록할 수 있습니다
+        val createdByUserId = "anonymous"
 
         // 이미지 파일 저장 및 URL 생성 (이미지가 있는 경우에만)
         val photos = if (images.isNotEmpty()) {
@@ -165,28 +153,13 @@ class PlaceService(
             category = PlaceCategory.valueOf(placeData["category"] as String),
             description = placeData["description"] as String,
             photos = photos,
-            createdBy = currentUser?.id ?: throw IllegalStateException("User ID cannot be null")
+            createdBy = createdByUserId
         )
 
         return placeRepository.save(place)
     }
 
-    /**
-     * 익명 사용자를 조회하거나 생성합니다.
-     * @return 익명 사용자 객체
-     */
-    private fun getOrCreateAnonymousUser(): User {
-        return userRepository.findByEmail("anonymous@hayoung-place.com") ?: run {
-            val anonymousUser = User(
-                email = "anonymous@hayoung-place.com",
-                name = "익명 사용자",
-                nickname = "익명",
-                provider = AuthProvider.GOOGLE,
-                providerId = "anonymous"
-            )
-            userRepository.save(anonymousUser)
-        }
-    }
+
 
     /**
      * 기존 장소 정보를 수정합니다.

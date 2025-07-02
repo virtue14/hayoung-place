@@ -1,6 +1,5 @@
 package com.millo.hayoungplace.place.domain
 
-import com.millo.hayoungplace.user.domain.User
 import org.springframework.data.annotation.Id
 import org.springframework.data.mongodb.core.mapping.Document
 import java.time.LocalDateTime
