@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react'
 import { useKakaoMap } from '@/hooks/useKakaoMap'
 import { useLocation } from '@/hooks/useLocation'
-import { MarkerIcon } from '@/components/MarkerIcon'
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+import { RedMarkerIcon } from '@/components/MarkerIcon'
 import { Place } from '@/types/place'
 
 interface PlaceDetailMapProps {
@@ -53,33 +54,35 @@ export default function PlaceDetailMap({ place, className = '' }: PlaceDetailMap
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       map.getMarkers?.()?.forEach((marker: any) => marker.setMap(null))
 
-      // 장소 마커 추가
+      // 장소 마커 추가 (기본 마커)
       const position = new window.kakao.maps.LatLng(latitude, longitude)
       
-      const content = document.createElement('div')
-      content.className = 'custom-marker marker-animation'
-      content.innerHTML = MarkerIcon
-
-      const customOverlay = new window.kakao.maps.CustomOverlay({
-        position,
-        content,
-        yAnchor: 1,
+      const placeMarker = new window.kakao.maps.Marker({
+        position: position,
+        map: map
       })
 
-      customOverlay.setMap(map)
-
-      // 내 위치 마커 추가 (있을 경우)
+      // 내 위치 마커 추가 (있을 경우) - 빨간색 핀 마커
       if (hasLocation && myLatitude && myLongitude) {
         const myPosition = new window.kakao.maps.LatLng(myLatitude, myLongitude)
-        const myLocationMarker = new window.kakao.maps.Marker({
+        
+        const myLocationContent = document.createElement('div')
+        myLocationContent.className = 'my-location-marker'
+        myLocationContent.innerHTML = RedMarkerIcon
+
+        const myLocationOverlay = new window.kakao.maps.CustomOverlay({
           position: myPosition,
-          map: map
+          content: myLocationContent,
+          yAnchor: 1,
+          xAnchor: 0.5
         })
+
+        myLocationOverlay.setMap(map)
 
         // 내 위치 인포윈도우
         const myLocationInfoWindow = new window.kakao.maps.InfoWindow({
           content: `
-            <div style="padding: 8px 12px; font-size: 12px; color: #3B82F6; font-weight: 600;">
+            <div style="padding: 8px 12px; font-size: 12px; color: #EF4444; font-weight: 600;">
               📍 내 위치
             </div>
           `,
@@ -87,16 +90,16 @@ export default function PlaceDetailMap({ place, className = '' }: PlaceDetailMap
         })
 
         // 내 위치 마커 클릭 이벤트
-        window.kakao.maps.event.addListener(myLocationMarker, 'click', function() {
-          myLocationInfoWindow.open(map, myLocationMarker)
+        myLocationContent.addEventListener('click', function() {
+          myLocationInfoWindow.open(map, myPosition)
           setTimeout(() => {
             myLocationInfoWindow.close()
           }, 2000)
         })
       }
 
-      // 마커 클릭 이벤트 - 인포윈도우 표시
-      content.addEventListener('click', () => {
+      // 장소 마커 클릭 이벤트 - 인포윈도우 표시
+      window.kakao.maps.event.addListener(placeMarker, 'click', function() {
         const infoWindow = new window.kakao.maps.InfoWindow({
           content: `
             <div class="p-3 min-w-[200px] max-w-[300px]">
@@ -123,7 +126,7 @@ export default function PlaceDetailMap({ place, className = '' }: PlaceDetailMap
           `,
           removable: true,
         })
-        infoWindow.open(map, position)
+        infoWindow.open(map, placeMarker)
       })
 
       // 지도 중심을 마커 위치로 설정
@@ -166,7 +169,7 @@ export default function PlaceDetailMap({ place, className = '' }: PlaceDetailMap
         {hasLocation && (
           <button
             onClick={goToMyLocation}
-            className="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-lg shadow-lg transition-all duration-200"
+            className="bg-red-600 hover:bg-red-700 text-white p-2 rounded-lg shadow-lg transition-all duration-200"
             title="내 위치로 이동"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -179,7 +182,7 @@ export default function PlaceDetailMap({ place, className = '' }: PlaceDetailMap
         {/* 장소로 가기 버튼 */}
         <button
           onClick={goToPlace}
-          className="bg-red-600 hover:bg-red-700 text-white p-2 rounded-lg shadow-lg transition-all duration-200"
+          className="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-lg shadow-lg transition-all duration-200"
           title="장소로 이동"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -191,8 +194,8 @@ export default function PlaceDetailMap({ place, className = '' }: PlaceDetailMap
 
       {/* 내 위치 표시 안내 */}
       {hasLocation && (
-        <div className="absolute bottom-3 left-3 bg-emerald-50 border border-emerald-200 rounded-lg p-2 shadow-sm z-10">
-          <p className="text-xs text-emerald-700 font-medium">📍 파란색이 내 위치</p>
+        <div className="absolute bottom-3 left-3 bg-red-50 border border-red-200 rounded-lg p-2 shadow-sm z-10">
+          <p className="text-xs text-red-700 font-medium">📍 빨간색이 내 위치</p>
         </div>
       )}
     </div>
