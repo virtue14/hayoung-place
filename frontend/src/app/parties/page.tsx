@@ -1,92 +1,147 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Users, MapPin, Calendar, Plus, Clock } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { Plus, Users, Calendar, MapPin, ChevronLeft, ChevronRight, Crown } from 'lucide-react'
+import { partyApi } from '@/lib/api/party'
+import { Party, PartyStatus } from '@/types/party'
+import Link from 'next/link'
+import AddPartyModal from '@/components/party/AddPartyModal'
 import TabNavigation from '@/components/layout/TabNavigation'
 
-// 임시 파티 데이터 타입
-interface Party {
-  id: string
-  title: string
-  description: string
-  location: string
-  date: string
-  time: string
-  maxParticipants: number
-  currentParticipants: number
-  hostName: string
-  tags: string[]
-  createdAt: string
-}
-
-// 임시 파티 데이터
-const mockParties: Party[] = [
-  {
-    id: '1',
-    title: '제주도 서쪽 해안 드라이브 함께해요',
-    description: '렌터카로 제주도 서쪽 해안을 따라 드라이브하며 맛집과 카페를 탐방할 예정입니다. 사진 찍기 좋아하시는 분들 환영!',
-    location: '제주시 출발',
-    date: '2024-01-15',
-    time: '10:00',
-    maxParticipants: 4,
-    currentParticipants: 2,
-    hostName: '여행러버',
-    tags: ['드라이브', '맛집', '사진'],
-    createdAt: '2024-01-10T09:00:00Z'
-  },
-  {
-    id: '2',
-    title: '한라산 등반 파티 모집',
-    description: '한라산 정상까지 함께 등반할 동행을 찾습니다. 등반 경험이 있으신 분들과 함께하고 싶어요.',
-    location: '한라산 어리목 탐방로',
-    date: '2024-01-20',
-    time: '06:00',
-    maxParticipants: 6,
-    currentParticipants: 3,
-    hostName: '산악인',
-    tags: ['등산', '한라산', '새벽'],
-    createdAt: '2024-01-08T14:30:00Z'
-  },
-  {
-    id: '3',
-    title: '제주 전통시장 투어',
-    description: '동문시장과 중앙지하상가에서 제주 특산품과 로컬 음식을 함께 맛보실 분들을 모집합니다.',
-    location: '제주시 동문시장',
-    date: '2024-01-18',
-    time: '15:00',
-    maxParticipants: 5,
-    currentParticipants: 1,
-    hostName: '로컬가이드',
-    tags: ['전통시장', '음식', '쇼핑'],
-    createdAt: '2024-01-09T11:15:00Z'
-  }
-]
-
 export default function PartiesPage() {
-  const [parties] = useState<Party[]>(mockParties)
+  const [parties, setParties] = useState<Party[]>([])
+  const [currentPage, setCurrentPage] = useState(0)
+  const [totalPages, setTotalPages] = useState(0)
+  const [totalElements, setTotalElements] = useState(0)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [showAddModal, setShowAddModal] = useState(false)
 
-  const getStatusColor = (current: number, max: number) => {
-    const ratio = current / max
-    if (ratio >= 1) return 'text-red-600 bg-red-100'
-    if (ratio >= 0.8) return 'text-yellow-600 bg-yellow-100'
-    return 'text-green-600 bg-green-100'
+  const loadParties = async (page: number) => {
+    try {
+      setIsLoading(true)
+      const response = await partyApi.getParties(page, 5)
+      setParties(response.content)
+      setTotalPages(response.totalPages)
+      setTotalElements(response.totalElements)
+      setCurrentPage(page)
+    } catch (err) {
+      setError('파티 목록을 불러오는데 실패했습니다.')
+      console.error(err)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
-  const getStatusText = (current: number, max: number) => {
-    if (current >= max) return '모집완료'
-    return '모집중'
+  useEffect(() => {
+    loadParties(0)
+  }, [])
+
+  const handlePageChange = (page: number) => {
+    if (page >= 0 && page < totalPages) {
+      loadParties(page)
+    }
+  }
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString)
+    return date.toLocaleString('ko-KR', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  }
+
+  const getDDayText = (dDay?: number) => {
+    if (dDay === undefined || dDay === null) return ''
+    if (dDay === 0) return 'D-Day'
+    if (dDay > 0) return `D-${dDay}`
+    return `D+${Math.abs(dDay)}`
+  }
+
+  const getDDayColor = (dDay?: number) => {
+    if (dDay === undefined || dDay === null) return 'bg-gray-100 text-gray-600'
+    if (dDay === 0) return 'bg-red-100 text-red-600'
+    if (dDay > 0 && dDay <= 3) return 'bg-orange-100 text-orange-600'
+    if (dDay > 3) return 'bg-blue-100 text-blue-600'
+    return 'bg-gray-100 text-gray-600'
+  }
+
+  // 페이지네이션 그룹 계산 (1-5, 6-10 형태)
+  const getPageGroups = () => {
+    const groups = []
+    for (let i = 0; i < totalPages; i += 5) {
+      groups.push({
+        start: i,
+        end: Math.min(i + 4, totalPages - 1),
+        pages: Array.from({ length: Math.min(5, totalPages - i) }, (_, index) => i + index)
+      })
+    }
+    return groups
+  }
+
+  const getCurrentGroup = () => {
+    const groupIndex = Math.floor(currentPage / 5)
+    const groups = getPageGroups()
+    return groups[groupIndex]
+  }
+
+  const canGoPrevGroup = () => {
+    return currentPage >= 5
+  }
+
+  const canGoNextGroup = () => {
+    return currentPage < totalPages - 5
+  }
+
+  const goToPrevGroup = () => {
+    const newPage = Math.max(0, currentPage - 5)
+    handlePageChange(newPage)
+  }
+
+  const goToNextGroup = () => {
+    const newPage = Math.min(totalPages - 1, currentPage + 5)
+    handlePageChange(newPage)
+  }
+
+  if (isLoading) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center">
+          <div className="inline-block w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+          <p className="mt-4 text-gray-600">파티 목록을 불러오는 중...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center text-red-600">
+          <p>{error}</p>
+          <Button onClick={() => loadParties(0)} className="mt-4">
+            다시 시도
+          </Button>
+        </div>
+      </div>
+    )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <>
       {/* 상단 고정 헤더 */}
       <header className="fixed top-0 left-0 right-0 bg-white/95 backdrop-blur-md shadow-sm z-20 border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8">
           <div className="flex justify-between items-center h-14 sm:h-16">
-            <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 truncate">파티모집</h1>
+            <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 truncate">하영플레이스</h1>
             <Button 
+              onClick={() => setShowAddModal(true)} 
               size="sm"
               className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 text-sm font-medium rounded-lg shadow-sm active:scale-95 transition-all duration-150"
             >
@@ -96,105 +151,178 @@ export default function PartiesPage() {
             </Button>
           </div>
         </div>
-             </header>
+      </header>
 
-       {/* 탭 네비게이션 */}
-       <TabNavigation className="fixed top-14 sm:top-16 left-0 right-0 z-10" />
+      {/* 탭 네비게이션 */}
+      <TabNavigation className="fixed top-14 sm:top-16 left-0 right-0 z-10" />
 
-               <main className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 pt-[104px] sm:pt-[112px] pb-6 sm:pb-8">
-         {/* 파티 수 */}
-         <div className="mb-4 sm:mb-6 mt-4 sm:mt-6">
-          <span className="text-sm sm:text-base font-semibold text-gray-700">
-            총 {parties.length}개의 파티
-          </span>
-        </div>
-
-        {/* 파티 목록 */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-          {parties.map((party) => (
-            <Card key={party.id} className="overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 ease-in-out hover:-translate-y-1 border border-gray-200 rounded-lg sm:rounded-xl cursor-pointer">
-              <CardHeader className="p-4 pb-2">
-                <div className="flex justify-between items-start mb-2">
-                  <CardTitle className="text-base sm:text-lg font-bold text-gray-900 leading-tight flex-1 mr-2">
-                    {party.title}
-                  </CardTitle>
-                  <span className={`inline-flex items-center px-2 py-1 text-xs font-medium rounded-full flex-shrink-0 ${getStatusColor(party.currentParticipants, party.maxParticipants)}`}>
-                    {getStatusText(party.currentParticipants, party.maxParticipants)}
-                  </span>
-                </div>
-              </CardHeader>
-              
-              <CardContent className="p-4 pt-0">
-                {/* 설명 */}
-                <p className="text-sm text-gray-600 line-clamp-2 leading-relaxed mb-3">
-                  {party.description}
-                </p>
-                
-                {/* 위치 */}
-                <div className="flex items-center space-x-2 text-gray-600 text-sm mb-2">
-                  <MapPin className="h-4 w-4 flex-shrink-0 text-gray-400" />
-                  <span className="line-clamp-1">{party.location}</span>
-                </div>
-                
-                {/* 날짜 및 시간 */}
-                <div className="flex items-center space-x-2 text-gray-600 text-sm mb-2">
-                  <Calendar className="h-4 w-4 flex-shrink-0 text-gray-400" />
-                  <span>{new Date(party.date).toLocaleDateString('ko-KR')}</span>
-                  <Clock className="h-4 w-4 flex-shrink-0 text-gray-400 ml-2" />
-                  <span>{party.time}</span>
-                </div>
-                
-                {/* 참가자 수 */}
-                <div className="flex items-center space-x-2 text-gray-600 text-sm mb-3">
-                  <Users className="h-4 w-4 flex-shrink-0 text-gray-400" />
-                  <span>{party.currentParticipants}/{party.maxParticipants}명</span>
-                </div>
-                
-                {/* 태그 */}
-                <div className="flex flex-wrap gap-1 mb-3">
-                  {party.tags.map((tag, index) => (
-                    <span 
-                      key={index}
-                      className="inline-flex items-center px-2 py-1 text-xs font-medium text-blue-600 bg-blue-100 rounded-full"
-                    >
-                      #{tag}
-                    </span>
-                  ))}
-                </div>
-                
-                {/* 하단 정보 */}
-                <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-                  <span className="text-xs text-gray-500">
-                    by {party.hostName}
-                  </span>
-                  <span className="text-xs text-gray-400">
-                    {new Date(party.createdAt).toLocaleDateString('ko-KR')}
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-        
-        {/* 빈 상태 */}
-        {parties.length === 0 && (
-          <div className="text-center py-12 sm:py-16 text-gray-500">
-            <div className="flex flex-col items-center space-y-3">
-              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gray-100 rounded-full flex items-center justify-center">
-                <Users className="w-8 h-8 sm:w-10 sm:h-10 text-gray-400" />
-              </div>
-              <p className="text-sm sm:text-base">모집 중인 파티가 없습니다.</p>
-              <Button 
-                variant="outline"
-                size="sm"
-                className="mt-2"
-              >
-                첫 번째 파티 만들기
-              </Button>
+      <div className="bg-gray-50 min-h-screen">
+        <main className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 pt-[104px] sm:pt-[112px]">
+          {/* 파티 목록 섹션 */}
+          <div className="mt-4 sm:mt-6">
+            <div className="mb-6">
+              <p className="text-gray-600 mt-2">
+                총 {totalElements}개의 모집글
+              </p>
             </div>
+
+            {/* 파티 목록 */}
+            <div className="grid gap-6">
+              {parties.length === 0 ? (
+                <div className="text-center py-12">
+                  <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    등록된 파티가 없습니다
+                  </h3>
+                  <p className="text-gray-500 mb-4">
+                    첫 번째 파티를 만들어보세요!
+                  </p>
+                  <Button
+                    onClick={() => setShowAddModal(true)}
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    파티 만들기
+                  </Button>
+                </div>
+              ) : (
+                parties.map((party) => (
+                  <Link key={party.id} href={`/parties/${party.id}`}>
+                    <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+                      <CardContent className="p-4">
+                        <div className="flex justify-between items-start mb-3">
+                          <div className="flex-1">
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-3">
+                                <h3 className="text-lg font-semibold text-gray-900">
+                                  {party.title}
+                                </h3>
+                                {party.dDay !== undefined && (
+                                  <Badge className={getDDayColor(party.dDay)}>
+                                    {getDDayText(party.dDay)}
+                                  </Badge>
+                                )}
+                              </div>
+                              <Badge
+                                variant={party.status === PartyStatus.RECRUITING ? 'default' : 'secondary'}
+                                className={
+                                  party.status === PartyStatus.RECRUITING
+                                    ? 'bg-green-100 text-green-800'
+                                    : 'bg-gray-100 text-gray-800'
+                                }
+                              >
+                                {party.status === PartyStatus.RECRUITING ? '모집중' : '모집완료'}
+                              </Badge>
+                            </div>
+                            <p className="text-gray-600 mb-3 line-clamp-2 text-sm">
+                              {party.description}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          {/* 위치 */}
+                          <div className="flex items-center text-gray-600 text-sm">
+                            <MapPin className="w-4 h-4 mr-2 flex-shrink-0" />
+                            <span>{party.location}</span>
+                          </div>
+                          
+                          {/* 일시 */}
+                          <div className="flex items-center text-gray-600 text-sm">
+                            <Calendar className="w-4 h-4 mr-2 flex-shrink-0" />
+                            <span>{formatDate(party.date)}</span>
+                          </div>
+                          
+                          {/* 인원 */}
+                          <div className="flex items-center text-gray-600 text-sm">
+                            <Users className="w-4 h-4 mr-2 flex-shrink-0" />
+                            <span>
+                              {party.currentMembers}
+                              {party.maxMembers ? `/${party.maxMembers}명` : '명 (제한없음)'}
+                            </span>
+                          </div>
+                          
+                          {/* 파티장과 작성일 */}
+                          <div className="flex items-center justify-between text-gray-600 text-sm">
+                            <div className="flex items-center">
+                              <Crown className="w-4 h-4 mr-2 flex-shrink-0 text-yellow-500" />
+                              <span>{party.nickname}</span>
+                            </div>
+                            <span className="text-xs text-gray-500">
+                              {new Date(party.createdAt).toLocaleDateString('ko-KR')}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* 태그 */}
+                        {party.tags && party.tags.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-3">
+                            {party.tags.map((tag, index) => (
+                              <Badge key={index} variant="outline" className="text-xs">
+                                #{tag}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </Link>
+                ))
+              )}
+            </div>
+
+            {/* 페이지네이션 */}
+            {totalPages > 1 && (
+              <div className="flex justify-center items-center gap-2 mt-8">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={goToPrevGroup}
+                  disabled={!canGoPrevGroup()}
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </Button>
+
+                {getCurrentGroup()?.pages.map((page) => (
+                  <Button
+                    key={page}
+                    variant={currentPage === page ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => handlePageChange(page)}
+                    className={
+                      currentPage === page
+                        ? 'bg-blue-600 text-white'
+                        : ''
+                    }
+                  >
+                    {page + 1}
+                  </Button>
+                ))}
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={goToNextGroup}
+                  disabled={!canGoNextGroup()}
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              </div>
+            )}
+
+            {/* 파티 추가 모달 */}
+            {showAddModal && (
+              <AddPartyModal
+                onClose={() => setShowAddModal(false)}
+                onSuccess={() => {
+                  setShowAddModal(false)
+                  loadParties(0) // 첫 페이지로 이동
+                }}
+              />
+            )}
           </div>
-        )}
-      </main>
-    </div>
+        </main>
+      </div>
+    </>
   )
 } 
