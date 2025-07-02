@@ -1,7 +1,7 @@
 FROM gradle:8.9-jdk17 AS builder
 
 WORKDIR /build
-COPY backend/ .
+COPY . .
 
 RUN gradle bootJar --no-daemon --no-build-cache
 
