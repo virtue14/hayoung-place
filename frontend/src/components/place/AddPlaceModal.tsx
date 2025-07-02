@@ -12,22 +12,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Place, PlaceCategory, KakaoPlaceSearchResult } from '@/types/place';
+import { 
+  Place, 
+  PlaceCategory, 
+  SubCategory,
+  KakaoPlaceSearchResult, 
+  CATEGORY_LABELS,
+  SUBCATEGORY_LABELS,
+  CATEGORY_SUBCATEGORY_MAPPING
+} from '@/types/place';
 import { useDebounce } from '@/hooks/useDebounce';
 import { createPlace } from '@/lib/api/place';
 import { Search } from 'lucide-react';
 import { useKakaoMap } from "@/hooks/useKakaoMap";
 
-// 카테고리 한글 이름 매핑
-const categoryNames: Record<PlaceCategory, string> = {
-  [PlaceCategory.RESTAURANT]: '맛집',
-  [PlaceCategory.CAFE]: '카페',
-  [PlaceCategory.GALLERY]: '미술관/전시',
-  [PlaceCategory.PHOTO_SPOT]: '포토스팟',
-  [PlaceCategory.CULTURE_ACTIVITY]: '문화 · 체험',
-  [PlaceCategory.SHOPPING]: '쇼핑',
-  [PlaceCategory.OTHER]: '기타',
-};
+
 
 interface AddPlaceModalProps {
   isOpen: boolean;
@@ -42,6 +41,7 @@ export default function AddPlaceModal({ isOpen, onClose, onPlaceAdded }: AddPlac
   const [selectedPlace, setSelectedPlace] = useState<KakaoPlaceSearchResult | null>(null);
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState<PlaceCategory | ''>('');
+  const [subCategory, setSubCategory] = useState<SubCategory | ''>('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -66,10 +66,16 @@ export default function AddPlaceModal({ isOpen, onClose, onPlaceAdded }: AddPlac
       setSelectedPlace(null);
       setDescription('');
       setCategory('');
+      setSubCategory('');
       setPassword('');
       setIsLoading(false);
     }
   }, [isOpen]);
+
+  // 1차 카테고리 변경 시 2차 카테고리 초기화
+  useEffect(() => {
+    setSubCategory('');
+  }, [category]);
 
   // 장소 검색
   useEffect(() => {
@@ -153,7 +159,7 @@ export default function AddPlaceModal({ isOpen, onClose, onPlaceAdded }: AddPlac
   // 제출 핸들러
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedPlace || !category || !description || !password) {
+    if (!selectedPlace || !category || !subCategory || !description || !password) {
       alert('모든 필드를 채워주세요.');
       return;
     }
@@ -167,6 +173,7 @@ export default function AddPlaceModal({ isOpen, onClose, onPlaceAdded }: AddPlac
         longitude: parseFloat(selectedPlace.x),
         latitude: parseFloat(selectedPlace.y),
         category: category,
+        subCategory: subCategory,
         description,
         password,
       };
@@ -178,7 +185,7 @@ export default function AddPlaceModal({ isOpen, onClose, onPlaceAdded }: AddPlac
       console.error('장소 등록 중 오류 발생:', error);
       
       // 서버에서 반환된 오류 메시지 확인
-      const errorResponse = error as any;
+      const errorResponse = error as { response?: { status?: number; data?: { message?: string } } };
       if (errorResponse.response?.status === 409) {
         // HTTP 409 Conflict - 중복된 장소
         const errorMessage = errorResponse.response?.data?.message || '이미 등록된 장소입니다.';
@@ -198,6 +205,9 @@ export default function AddPlaceModal({ isOpen, onClose, onPlaceAdded }: AddPlac
       setIsLoading(false);
     }
   };
+
+  // 현재 선택된 1차 카테고리에 따른 2차 카테고리 옵션들
+  const availableSubCategories = category ? CATEGORY_SUBCATEGORY_MAPPING[category as PlaceCategory] : [];
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
@@ -255,14 +265,15 @@ export default function AddPlaceModal({ isOpen, onClose, onPlaceAdded }: AddPlac
               </div>
             )}
 
+            {/* 1차 카테고리 선택 */}
             <div>
-              <label htmlFor="category" className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-1.5">카테고리</label>
+              <label htmlFor="category" className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-1.5">1차 카테고리</label>
               <Select value={category} onValueChange={(value: PlaceCategory) => setCategory(value)} required>
                 <SelectTrigger id="category" className="h-10 text-sm bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 rounded-lg">
                   <SelectValue placeholder="장소 종류 선택" />
                 </SelectTrigger>
                 <SelectContent className="bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 rounded-lg max-h-48">
-                  {Object.entries(categoryNames).map(([key, name]) => (
+                  {Object.entries(CATEGORY_LABELS).map(([key, name]) => (
                     <SelectItem 
                       key={key} 
                       value={key} 
@@ -274,6 +285,29 @@ export default function AddPlaceModal({ isOpen, onClose, onPlaceAdded }: AddPlac
                 </SelectContent>
               </Select>
             </div>
+
+            {/* 2차 카테고리 선택 - 1차 카테고리 선택 후에만 표시 */}
+            {category && availableSubCategories.length > 0 && (
+              <div>
+                <label htmlFor="subcategory" className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-1.5">2차 카테고리</label>
+                <Select value={subCategory} onValueChange={(value: SubCategory) => setSubCategory(value)} required>
+                  <SelectTrigger id="subcategory" className="h-10 text-sm bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 rounded-lg">
+                    <SelectValue placeholder="세부 카테고리 선택" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 rounded-lg max-h-48">
+                    {availableSubCategories.map((subCat) => (
+                      <SelectItem 
+                        key={subCat} 
+                        value={subCat} 
+                        className="hover:bg-gray-100 dark:hover:bg-gray-700 text-sm py-2 cursor-pointer"
+                      >
+                        {SUBCATEGORY_LABELS[subCat]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             <div>
               <label htmlFor="description" className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-1.5">장소 설명</label>
