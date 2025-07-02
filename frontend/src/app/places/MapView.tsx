@@ -20,8 +20,13 @@ export default function MapView({ places }: MapViewProps) {
     const goToMyLocation = () => {
         if (currentMap && hasLocation && latitude && longitude) {
             const myPosition = new window.kakao.maps.LatLng(latitude, longitude)
+            // 강제로 중심 설정하고 레벨 변경
             currentMap.setCenter(myPosition)
-            currentMap.setLevel(3) // 가까이 확대
+            currentMap.setLevel(3, { animate: true })
+            // 추가로 panTo로 부드럽게 이동
+            setTimeout(() => {
+                currentMap.panTo(myPosition)
+            }, 50)
         }
     }
 
@@ -44,99 +49,48 @@ export default function MapView({ places }: MapViewProps) {
         const map = new window.kakao.maps.Map(mapRef.current, mapOption)
         setCurrentMap(map)
 
-        // 현재 위치 마커 표시 (더 눈에 잘 띄게)
+        // 내 위치 마커 표시 (빨간색 핀 마커)
         if (hasLocation) {
-          // 커스텀 내 위치 마커 생성 (더 크고 눈에 띄는 디자인)
+          const myPosition = new window.kakao.maps.LatLng(latitude!, longitude!)
+          
+          // 빨간색 핀 마커 생성
           const myLocationContent = document.createElement('div')
-          myLocationContent.style.cssText = `
-            width: 48px;
-            height: 48px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #10B981, #059669);
-            border: 5px solid white;
-            box-shadow: 0 4px 20px rgba(16, 185, 129, 0.6), 0 0 0 10px rgba(16, 185, 129, 0.1);
-            position: relative;
-            cursor: pointer;
-            transition: all 0.3s ease;
+          myLocationContent.className = 'my-location-marker'
+          myLocationContent.innerHTML = `
+            <svg width="40" height="48" viewBox="0 0 40 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <filter id="my-shadow" x="-20%" y="-20%" width="140%" height="140%">
+                <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#000" flood-opacity="0.3"/>
+              </filter>
+              <path d="M20 0C8.96 0 0 8.96 0 20C0 31.04 20 48 20 48C20 48 40 31.04 40 20C40 8.96 31.04 0 20 0ZM20 28C15.58 28 12 24.42 12 20C12 15.58 15.58 12 20 12C24.42 12 28 15.58 28 20C28 24.42 24.42 28 20 28Z" 
+                    fill="#FF385C" 
+                    filter="url(#my-shadow)"/>
+            </svg>
           `
-          
-          // 내부 점 추가
-          const innerDot = document.createElement('div')
-          innerDot.style.cssText = `
-            width: 16px;
-            height: 16px;
-            border-radius: 50%;
-            background: white;
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-          `
-          myLocationContent.appendChild(innerDot)
 
-          // 맥박 효과를 위한 외부 링
-          const pulseRing = document.createElement('div')
-          pulseRing.style.cssText = `
-            position: absolute;
-            top: -20px;
-            left: -20px;
-            width: 88px;
-            height: 88px;
-            border: 3px solid #10B981;
-            border-radius: 50%;
-            opacity: 0.4;
-            animation: pulse-ring 2s infinite;
-          `
-          myLocationContent.appendChild(pulseRing)
-
-          // 애니메이션 키프레임 추가
-          if (!document.getElementById('my-location-animations')) {
-            const style = document.createElement('style')
-            style.id = 'my-location-animations'
-            style.textContent = `
-              @keyframes pulse-ring {
-                0% { transform: scale(0.2); opacity: 1; }
-                80%, 100% { transform: scale(1); opacity: 0; }
-              }
-            `
-            document.head.appendChild(style)
-          }
-
-          // 호버 효과
-          myLocationContent.addEventListener('mouseenter', () => {
-            myLocationContent.style.transform = 'scale(1.15)'
-            myLocationContent.style.boxShadow = '0 6px 24px rgba(16, 185, 129, 0.8), 0 0 0 10px rgba(16, 185, 129, 0.2)'
-          })
-          
-          myLocationContent.addEventListener('mouseleave', () => {
-            myLocationContent.style.transform = 'scale(1)'
-            myLocationContent.style.boxShadow = '0 4px 20px rgba(16, 185, 129, 0.6), 0 0 0 10px rgba(16, 185, 129, 0.1)'
-          })
-
-          const currentLocationOverlay = new window.kakao.maps.CustomOverlay({
-            position: new window.kakao.maps.LatLng(latitude!, longitude!),
+          const myLocationOverlay = new window.kakao.maps.CustomOverlay({
+            position: myPosition,
             content: myLocationContent,
-            yAnchor: 0.5,
+            yAnchor: 1,
             xAnchor: 0.5
           })
 
-          currentLocationOverlay.setMap(map)
+          myLocationOverlay.setMap(map)
 
-          // 현재 위치 인포윈도우
-          const currentLocationInfoWindow = new window.kakao.maps.InfoWindow({
+          // 내 위치 인포윈도우
+          const myLocationInfoWindow = new window.kakao.maps.InfoWindow({
             content: `
-              <div style="padding: 10px 14px; font-size: 13px; color: #059669; font-weight: 600; text-align: center;">
+              <div style="padding: 8px 12px; font-size: 12px; color: #FF385C; font-weight: 600;">
                 📍 내 위치
               </div>
             `,
             removable: false
           })
 
-          // 현재 위치 마커 클릭 이벤트
+          // 내 위치 마커 클릭 이벤트
           myLocationContent.addEventListener('click', function() {
-            currentLocationInfoWindow.open(map, new window.kakao.maps.LatLng(latitude!, longitude!))
+            myLocationInfoWindow.open(map, myPosition)
             setTimeout(() => {
-              currentLocationInfoWindow.close()
+              myLocationInfoWindow.close()
             }, 2000)
           })
         }
@@ -146,43 +100,10 @@ export default function MapView({ places }: MapViewProps) {
           const [longitude, latitude] = place.location.coordinates
           const markerPosition = new window.kakao.maps.LatLng(latitude, longitude)
           
-          // 장소 마커 커스텀 생성 (빨간색, 기본 크기)
-          const placeMarkerContent = document.createElement('div')
-          placeMarkerContent.style.cssText = `
-            width: 32px;
-            height: 40px;
-            background: #EF4444;
-            border-radius: 50% 50% 50% 0;
-            transform: rotate(-45deg);
-            border: 3px solid white;
-            box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
-            cursor: pointer;
-            position: relative;
-          `
-          
-          const placeMarkerInner = document.createElement('div')
-          placeMarkerInner.style.cssText = `
-            width: 12px;
-            height: 12px;
-            background: white;
-            border-radius: 50%;
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%) rotate(45deg);
-          `
-          placeMarkerContent.appendChild(placeMarkerInner)
-
-          const placeMarkerOverlay = new window.kakao.maps.CustomOverlay({
+          const marker = new window.kakao.maps.Marker({
             position: markerPosition,
-            content: placeMarkerContent,
-            yAnchor: 1,
-            xAnchor: 0.5
+            map: map
           })
-
-          placeMarkerOverlay.setMap(map)
-
-          
 
           // 인포윈도우 생성 (이전 버전의 자세한 정보)
           const categoryText = CATEGORY_LABELS[place.category];
@@ -247,14 +168,14 @@ export default function MapView({ places }: MapViewProps) {
           })
 
           // 마커 클릭 이벤트
-          placeMarkerContent.addEventListener('click', function() {
+          window.kakao.maps.event.addListener(marker, 'click', function() {
             // 기존에 열린 인포윈도우가 있다면 닫기
             if (window.closeInfoWindow) {
               window.closeInfoWindow()
             }
             
             // 새 인포윈도우 열기
-            infoWindow.open(map, markerPosition)
+            infoWindow.open(map, marker)
             
             // 전역 함수에 현재 인포윈도우 저장
             window.closeInfoWindow = () => {
@@ -334,8 +255,8 @@ export default function MapView({ places }: MapViewProps) {
 
             {/* 현재 위치 표시 안내 */}
             {hasLocation && (
-                                 <div className="absolute bottom-4 left-4 bg-emerald-50 border border-emerald-200 rounded-lg p-2 shadow-sm">
-                     <p className="text-xs text-emerald-700 font-medium">📍 초록색이 내 위치입니다</p>
+                                 <div className="absolute bottom-4 left-4 bg-red-50 border border-red-200 rounded-lg p-2 shadow-sm">
+                     <p className="text-xs text-red-700 font-medium">📍 빨간색이 내 위치입니다</p>
                  </div>
             )}
         </div>
