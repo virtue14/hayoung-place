@@ -39,16 +39,6 @@ class PlaceService(
         private val logger: Logger = LoggerFactory.getLogger(PlaceService::class.java)
     }
 
-    // 이미지 저장 경로 설정
-    private val uploadDir = Paths.get("uploads/images")
-
-    init {
-        // 이미지 저장 디렉토리 생성
-        if (!Files.exists(uploadDir)) {
-            Files.createDirectories(uploadDir)
-        }
-    }
-
     /**
      * 비밀번호를 SHA-256으로 해시화합니다.
      * @param password 원본 비밀번호
