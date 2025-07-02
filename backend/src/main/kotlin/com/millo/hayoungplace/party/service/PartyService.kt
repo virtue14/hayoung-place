@@ -172,6 +172,31 @@ class PartyService(
             }
     }
 
+    fun closeParty(partyId: String, nickname: String, password: String): PartyResponse {
+        val party = partyRepository.findById(partyId)
+            .orElseThrow { IllegalArgumentException("파티를 찾을 수 없습니다.") }
+
+        // 파티장인지 확인
+        val creator = partyMemberRepository.findByPartyIdAndNickname(partyId, nickname)
+            ?: throw IllegalArgumentException("파티원을 찾을 수 없습니다.")
+
+        if (!creator.isCreator) {
+            throw IllegalArgumentException("파티장만 파티를 마감할 수 있습니다.")
+        }
+
+        if (creator.password != password) {
+            throw IllegalArgumentException("비밀번호가 일치하지 않습니다.")
+        }
+
+        if (party.status == PartyStatus.COMPLETED) {
+            throw IllegalArgumentException("이미 마감된 파티입니다.")
+        }
+
+        val closedParty = party.copy(status = PartyStatus.COMPLETED, updatedAt = LocalDateTime.now())
+        val savedParty = partyRepository.save(closedParty)
+        return convertToResponse(savedParty)
+    }
+
     private fun convertToResponse(party: Party): PartyResponse {
         val currentMembers = partyMemberRepository.countByPartyId(party.id!!).toInt()
         val dDay = calculateDDay(party.date)

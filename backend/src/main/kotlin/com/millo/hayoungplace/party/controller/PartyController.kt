@@ -81,4 +81,14 @@ class PartyController(
         val members = partyService.getPartyMembers(id)
         return ResponseEntity.ok(members)
     }
+
+    @PatchMapping("/{id}/close")
+    fun closeParty(
+        @PathVariable id: String,
+        @RequestParam nickname: String,
+        @RequestBody request: PasswordRequest
+    ): ResponseEntity<PartyResponse> {
+        val party = partyService.closeParty(id, nickname, request.password)
+        return ResponseEntity.ok(party)
+    }
 }
