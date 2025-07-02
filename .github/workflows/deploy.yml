@@ -30,7 +30,8 @@ jobs:
             .git/
             .github/
             build/
-            .env
+            .env.docker
+            .env.local
 
       - name: Create .env on AWS server
         uses: appleboy/ssh-action@v1.0.3
@@ -41,8 +42,8 @@ jobs:
           port: 22
           script: |
             cd /home/ec2-user/hayoung-place
-            echo "${{ secrets.ENV }}" | base64 --decode > .env
-            echo ".env created"
+            echo "${{ secrets.ENV }}" | base64 --decode > .env.docker
+            echo ".env.docker created"
 
       - name: Deploy with Docker Compose
         uses: appleboy/ssh-action@v1.0.3
@@ -54,5 +55,5 @@ jobs:
           script: |
             cd /home/ec2-user/hayoung-place
             docker-compose down || true
-            docker-compose --env-file .env up -d --build
+            docker-compose --env-file .env.docker up -d --build
             echo "Deployment complete!"
