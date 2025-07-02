@@ -8,7 +8,7 @@ import { Page, Place, PlaceCategory, SubCategory } from '@/types/place'
  * @param category 카테고리 필터 (선택사항)
  */
 export const getAllPlaces = async (page: number = 0, size: number = 5, category?: PlaceCategory | null): Promise<Page<Place>> => {
-    let url = `/api/places?page=${page}&size=${size}`
+    let url = `/places?page=${page}&size=${size}`
     if (category) {
         url += `&category=${category}`
     }
@@ -21,7 +21,7 @@ export const getAllPlaces = async (page: number = 0, size: number = 5, category?
  * @param id 장소 ID
  */
 export const getPlaceById = async (id: string): Promise<Place> => {
-    const response = await api.get<Place>(`/api/places/${id}`)
+    const response = await api.get<Place>(`/places/${id}`)
     return response.data
 }
 
@@ -43,7 +43,7 @@ interface CreatePlaceRequest {
  * @param placeData 장소 정보 객체
  */
 export const createPlace = async (placeData: CreatePlaceRequest): Promise<Place> => {
-    const response = await api.post<Place>('/api/places', placeData, {
+    const response = await api.post<Place>('/places', placeData, {
         headers: {
             'Content-Type': 'application/json',
         },
@@ -57,7 +57,7 @@ export const createPlace = async (placeData: CreatePlaceRequest): Promise<Place>
  * @param password 비밀번호
  */
 export const verifyPlacePassword = async (placeId: string, password: string): Promise<void> => {
-    const response = await api.post(`/api/places/${placeId}/verify-password`, {
+    const response = await api.post(`/places/${placeId}/verify-password`, {
         password
     });
     return response.data;
@@ -77,7 +77,7 @@ export const updatePlace = async (
         password: string;
     }
 ): Promise<Place> => {
-    const response = await api.put<Place>(`/api/places/${placeId}`, updateData);
+    const response = await api.put<Place>(`/places/${placeId}`, updateData);
     return response.data;
 };
 
@@ -87,7 +87,7 @@ export const updatePlace = async (
  * @param password 비밀번호
  */
 export const deletePlace = async (id: string, password: string): Promise<void> => {
-    await api.delete(`/api/places/${id}`, {
+    await api.delete(`/places/${id}`, {
         data: { password }
     });
 };
@@ -98,11 +98,11 @@ export const placeApi = {
 
   // 카테고리별 장소 목록 조회
   getPlacesByCategory: (category: string) =>
-    api.get<Place[]>(`/api/places/category/${category}`),
+    api.get<Place[]>(`/places/category/${category}`),
 
   // 장소 검색
   searchPlaces: (query: string, page = 0, size = 20) =>
-    api.get<Place[]>(`/api/places/search?query=${query}&page=${page}&size=${size}`),
+    api.get<Place[]>(`/places/search?query=${query}&page=${page}&size=${size}`),
 
   // 장소 등록
   createPlace: createPlace,
