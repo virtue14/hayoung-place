@@ -15,7 +15,7 @@ import {
 import { Place, PlaceCategory, KakaoPlaceSearchResult } from '@/types/place';
 import { useDebounce } from '@/hooks/useDebounce';
 import { createPlace } from '@/lib/api/place';
-import { Map, Search } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { useKakaoMap } from "@/hooks/useKakaoMap";
 
 // 카테고리 한글 이름 매핑
@@ -42,6 +42,7 @@ export default function AddPlaceModal({ isOpen, onClose, onPlaceAdded }: AddPlac
   const [selectedPlace, setSelectedPlace] = useState<KakaoPlaceSearchResult | null>(null);
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState<PlaceCategory | ''>('');
+  const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
@@ -65,6 +66,7 @@ export default function AddPlaceModal({ isOpen, onClose, onPlaceAdded }: AddPlac
       setSelectedPlace(null);
       setDescription('');
       setCategory('');
+      setPassword('');
       setIsLoading(false);
     }
   }, [isOpen]);
@@ -151,7 +153,7 @@ export default function AddPlaceModal({ isOpen, onClose, onPlaceAdded }: AddPlac
   // 제출 핸들러
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedPlace || !category || !description) {
+    if (!selectedPlace || !category || !description || !password) {
       alert('모든 필드를 채워주세요.');
       return;
     }
@@ -166,24 +168,26 @@ export default function AddPlaceModal({ isOpen, onClose, onPlaceAdded }: AddPlac
         latitude: parseFloat(selectedPlace.y),
         category: category,
         description,
+        password,
       };
 
       const newPlace = await createPlace(placeData);
       onPlaceAdded(newPlace);
       onClose();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('장소 등록 중 오류 발생:', error);
       
       // 서버에서 반환된 오류 메시지 확인
-      if (error.response?.status === 409) {
+      const errorResponse = error as any;
+      if (errorResponse.response?.status === 409) {
         // HTTP 409 Conflict - 중복된 장소
-        const errorMessage = error.response?.data?.message || '이미 등록된 장소입니다.';
+        const errorMessage = errorResponse.response?.data?.message || '이미 등록된 장소입니다.';
         alert(errorMessage);
-      } else if (error.response?.status === 400) {
+      } else if (errorResponse.response?.status === 400) {
         // HTTP 400 Bad Request - 잘못된 요청
-        const errorMessage = error.response?.data?.message || '잘못된 요청입니다. 입력 정보를 확인해주세요.';
+        const errorMessage = errorResponse.response?.data?.message || '잘못된 요청입니다. 입력 정보를 확인해주세요.';
         alert(errorMessage);
-      } else if (error.response?.status >= 500) {
+      } else if (errorResponse.response?.status >= 500) {
         // HTTP 5xx - 서버 오류
         alert('서버에서 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
       } else {
@@ -281,6 +285,22 @@ export default function AddPlaceModal({ isOpen, onClose, onPlaceAdded }: AddPlac
                 onChange={(e) => setDescription(e.target.value)}
                 required
               />
+            </div>
+
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-1.5">비밀번호</label>
+              <Input
+                id="password"
+                type="password"
+                className="bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 focus:border-blue-500 focus:ring-blue-500 h-10 text-sm rounded-lg"
+                placeholder="글 수정/삭제 시 사용할 비밀번호를 입력하세요"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                나중에 이 글을 수정하거나 삭제할 때 필요합니다.
+              </p>
             </div>
           </div>
           

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { MapPin, UtensilsCrossed, Coffee, Palette, Camera, ShoppingBag, Paintbrush, MoreHorizontal, Map, X, Plus, Heart, ChevronLeft, ChevronRight } from 'lucide-react'
+import { MapPin, UtensilsCrossed, Coffee, Palette, Camera, ShoppingBag, Paintbrush, MoreHorizontal, Map, X, Plus, Eye, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Place, PlaceCategory } from '@/types/place'
 import { getAllPlaces } from '@/lib/api/place'
 import MapView from '../MapView'
@@ -240,12 +240,12 @@ export default function ListView() {
                                             <span className="line-clamp-2 leading-relaxed">{place.address}</span>
                                         </div>
                                         
-                                        {/* 찜하기 수 표시 (추후 로그인 기능 연동 예정) */}
+                                        {/* 조회수 표시 */}
                                         <div className="flex items-center justify-between">
-                                            <div className="flex items-center space-x-1 text-red-500">
-                                                <Heart className="h-4 w-4" />
-                                                <span className="text-sm font-medium">{place.likesCount || 0}</span>
-                                                <span className="text-xs text-gray-400 ml-1">찜</span>
+                                            <div className="flex items-center space-x-1 text-blue-500">
+                                                <Eye className="h-4 w-4" />
+                                                <span className="text-sm font-medium">{place.viewCount || 0}</span>
+                                                <span className="text-xs text-gray-400 ml-1">조회</span>
                                             </div>
                                             <span className="text-xs text-gray-400">
                                                 {new Date(place.createdAt).toLocaleDateString('ko-KR')}

@@ -47,7 +47,7 @@ export interface Place {
   category: PlaceCategory;
   description: string;
   photos: string[];
-  likesCount: number;
+  viewCount: number;
   createdBy: string;
   createdAt: string; // ISO 8601 형식의 날짜 문자열
   updatedAt: string;

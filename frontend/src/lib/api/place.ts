@@ -33,6 +33,16 @@ interface CreatePlaceRequest {
     latitude: number;
     category: PlaceCategory;
     description: string;
+    password: string;
+}
+
+interface UpdatePlaceRequest extends CreatePlaceRequest {
+    password: string;
+}
+
+interface PasswordVerifyResponse {
+    valid: boolean;
+    message: string;
 }
 
 /**
@@ -46,6 +56,37 @@ export const createPlace = async (placeData: CreatePlaceRequest): Promise<Place>
         },
     });
     return response.data;
+};
+
+/**
+ * 장소 비밀번호를 검증합니다.
+ * @param id 장소 ID
+ * @param password 비밀번호
+ */
+export const verifyPlacePassword = async (id: string, password: string): Promise<PasswordVerifyResponse> => {
+    const response = await api.post<PasswordVerifyResponse>(`/api/places/${id}/verify-password`, { password });
+    return response.data;
+};
+
+/**
+ * 장소 정보를 수정합니다.
+ * @param id 장소 ID
+ * @param placeData 수정할 장소 정보 (비밀번호 포함)
+ */
+export const updatePlace = async (id: string, placeData: UpdatePlaceRequest): Promise<Place> => {
+    const response = await api.put<Place>(`/api/places/${id}`, placeData);
+    return response.data;
+};
+
+/**
+ * 장소를 삭제합니다.
+ * @param id 장소 ID
+ * @param password 비밀번호
+ */
+export const deletePlace = async (id: string, password: string): Promise<void> => {
+    await api.delete(`/api/places/${id}`, {
+        data: { password }
+    });
 };
 
 export const placeApi = {
@@ -66,11 +107,12 @@ export const placeApi = {
   // 장소 상세 정보 조회
   getPlaceById: getPlaceById,
 
+  // 비밀번호 검증
+  verifyPassword: verifyPlacePassword,
+
   // 장소 정보 수정
-  updatePlace: (id: string, place: Place) =>
-    api.put<Place>(`/api/places/${id}`, place),
+  updatePlace: updatePlace,
 
   // 장소 삭제
-  deletePlace: (id: string) =>
-    api.delete(`/api/places/${id}`),
+  deletePlace: deletePlace,
 } 

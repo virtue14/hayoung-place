@@ -9,18 +9,21 @@ import {
   ArrowLeft, 
   ExternalLink, 
   Calendar, 
-  Heart, 
+  Eye, 
   UtensilsCrossed, 
   Coffee, 
   Palette, 
   Camera, 
   ShoppingBag, 
   Paintbrush, 
-  MoreHorizontal
+  MoreHorizontal,
+  Edit2,
+  Trash2
 } from 'lucide-react'
 import { Place, PlaceCategory } from '@/types/place'
-import { getPlaceById } from '@/lib/api/place'
+import { getPlaceById, verifyPlacePassword, deletePlace } from '@/lib/api/place'
 import PlaceDetailMap from '@/components/place/PlaceDetailMap'
+import PasswordModal from '@/components/place/PasswordModal'
 
 // 카테고리 아이콘 매핑
 const categoryIcons: Record<PlaceCategory, JSX.Element> = {
@@ -50,6 +53,9 @@ export default function PlaceDetailPage() {
     const [place, setPlace] = useState<Place | null>(null)
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
+    const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false)
+    const [passwordModalType, setPasswordModalType] = useState<'edit' | 'delete'>('edit')
+    const [isPasswordLoading, setIsPasswordLoading] = useState(false)
 
     useEffect(() => {
         const fetchPlace = async () => {
@@ -63,9 +69,10 @@ export default function PlaceDetailPage() {
                 setIsLoading(true)
                 const placeData = await getPlaceById(params.id)
                 setPlace(placeData)
-            } catch (error: any) {
+            } catch (error: unknown) {
                 console.error('장소 정보를 불러오는데 실패했습니다:', error)
-                if (error.response?.status === 404) {
+                const errorResponse = error as any
+                if (errorResponse.response?.status === 404) {
                     setError('장소를 찾을 수 없습니다.')
                 } else {
                     setError('장소 정보를 불러오는데 실패했습니다.')
@@ -85,6 +92,47 @@ export default function PlaceDetailPage() {
     const handleOpenInKakao = () => {
         if (place?.placeUrl) {
             window.open(place.placeUrl, '_blank')
+        }
+    }
+
+    const handleEditClick = () => {
+        setPasswordModalType('edit')
+        setIsPasswordModalOpen(true)
+    }
+
+    const handleDeleteClick = () => {
+        setPasswordModalType('delete')
+        setIsPasswordModalOpen(true)
+    }
+
+    const handlePasswordConfirm = async (password: string) => {
+        if (!place?.id) return
+
+        setIsPasswordLoading(true)
+        try {
+            // 비밀번호 검증
+            await verifyPlacePassword(place.id, password)
+            
+            if (passwordModalType === 'edit') {
+                // 수정 페이지로 이동 (추후 구현)
+                alert('수정 기능은 추후 구현 예정입니다.')
+            } else if (passwordModalType === 'delete') {
+                // 삭제 실행
+                await deletePlace(place.id, password)
+                alert('장소가 성공적으로 삭제되었습니다.')
+                router.back()
+            }
+            
+            setIsPasswordModalOpen(false)
+        } catch (error: unknown) {
+            const errorResponse = error as any
+            if (errorResponse.response?.status === 401) {
+                alert('비밀번호가 일치하지 않습니다.')
+            } else {
+                alert('오류가 발생했습니다. 다시 시도해주세요.')
+            }
+        } finally {
+            setIsPasswordLoading(false)
         }
     }
 
@@ -163,12 +211,12 @@ export default function PlaceDetailPage() {
                                 </div>
                             </div>
                             
-                            {/* 찜하기 버튼 (추후 기능 구현) */}
-                            <Button variant="outline" size="sm" className="flex items-center gap-2" disabled>
-                                <Heart className="w-4 h-4 text-red-500" />
-                                <span>{place.likesCount || 0}</span>
-                                <span className="text-xs text-gray-500">찜</span>
-                            </Button>
+                            {/* 조회수 표시 */}
+                            <div className="flex items-center gap-2 px-3 py-1 bg-gray-100 rounded-lg">
+                                <Eye className="w-4 h-4 text-gray-600" />
+                                <span className="text-sm font-medium text-gray-700">{place.viewCount || 0}</span>
+                                <span className="text-xs text-gray-500">조회</span>
+                            </div>
                         </div>
                     </CardHeader>
                     
@@ -230,10 +278,10 @@ export default function PlaceDetailPage() {
                             </div>
                             
                             <div className="flex items-center gap-3">
-                                <Heart className="w-5 h-5 text-red-500" />
+                                <Eye className="w-5 h-5 text-blue-500" />
                                 <div>
-                                    <p className="text-sm text-gray-500">찜하기</p>
-                                    <p className="font-medium text-gray-900">{place.likesCount || 0}명이 찜했어요</p>
+                                    <p className="text-sm text-gray-500">조회수</p>
+                                    <p className="font-medium text-gray-900">{place.viewCount || 0}회 조회됨</p>
                                 </div>
                             </div>
                         </div>
@@ -241,26 +289,63 @@ export default function PlaceDetailPage() {
                 </Card>
 
                 {/* 하단 액션 버튼들 */}
-                <div className="flex flex-col sm:flex-row gap-3">
-                    <Button
-                        variant="outline"
-                        onClick={handleBack}
-                        className="flex-1 sm:flex-none"
-                    >
-                        <ArrowLeft className="w-4 h-4 mr-2" />
-                        목록으로 돌아가기
-                    </Button>
-                    
-                    {place.placeUrl && (
+                <div className="flex flex-col gap-3">
+                    {/* 첫 번째 줄: 수정/삭제 버튼 */}
+                    <div className="flex gap-3">
                         <Button
-                            onClick={handleOpenInKakao}
-                            className="flex-1 sm:flex-none bg-yellow-400 hover:bg-yellow-500 text-yellow-900"
+                            variant="outline"
+                            onClick={handleEditClick}
+                            className="flex-1"
                         >
-                            <ExternalLink className="w-4 h-4 mr-2" />
-                            카카오맵에서 보기
+                            <Edit2 className="w-4 h-4 mr-2" />
+                            수정하기
                         </Button>
-                    )}
+                        <Button
+                            variant="destructive"
+                            onClick={handleDeleteClick}
+                            className="flex-1"
+                        >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            삭제하기
+                        </Button>
+                    </div>
+                    
+                    {/* 두 번째 줄: 목록/카카오맵 버튼 */}
+                    <div className="flex flex-col sm:flex-row gap-3">
+                        <Button
+                            variant="outline"
+                            onClick={handleBack}
+                            className="flex-1 sm:flex-none"
+                        >
+                            <ArrowLeft className="w-4 h-4 mr-2" />
+                            목록으로 돌아가기
+                        </Button>
+                        
+                        {place.placeUrl && (
+                            <Button
+                                onClick={handleOpenInKakao}
+                                className="flex-1 sm:flex-none bg-yellow-400 hover:bg-yellow-500 text-yellow-900"
+                            >
+                                <ExternalLink className="w-4 h-4 mr-2" />
+                                카카오맵에서 보기
+                            </Button>
+                        )}
+                    </div>
                 </div>
+
+                {/* 비밀번호 확인 모달 */}
+                <PasswordModal
+                    isOpen={isPasswordModalOpen}
+                    onClose={() => setIsPasswordModalOpen(false)}
+                    onConfirm={handlePasswordConfirm}
+                    title={passwordModalType === 'edit' ? '장소 수정' : '장소 삭제'}
+                    description={
+                        passwordModalType === 'edit'
+                            ? '장소를 수정하려면 등록 시 설정한 비밀번호를 입력해주세요.'
+                            : '장소를 삭제하려면 등록 시 설정한 비밀번호를 입력해주세요.'
+                    }
+                    isLoading={isPasswordLoading}
+                />
             </main>
         </div>
     )
