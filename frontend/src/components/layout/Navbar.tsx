@@ -1,6 +1,5 @@
 'use client'
 
-import { useAuthStore } from '@/store/auth'
 import { Button } from '@/components/ui/button'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -8,7 +7,6 @@ import { Menu } from 'lucide-react'
 import { useState } from 'react'
 
 export function Navbar() {
-    const { user, logout } = useAuthStore()
     const [isMenuOpen, setIsMenuOpen] = useState(false)
 
     return (
@@ -36,17 +34,6 @@ export function Navbar() {
                         <Link href="/places/list" className="text-gray-600 hover:text-blue-600">
                             맛집 목록
                         </Link>
-                        {user && (
-                            <div className="flex items-center space-x-4">
-                                <span className="text-gray-600">{user.name}님</span>
-                                <Button
-                                    variant="outline"
-                                    onClick={() => logout()}
-                                >
-                                    로그아웃
-                                </Button>
-                            </div>
-                        )}
                     </div>
 
                     {/* 모바일 메뉴 버튼 */}
@@ -79,23 +66,6 @@ export function Navbar() {
                         >
                             맛집 목록
                         </Link>
-                        {user && (
-                            <>
-                                <div className="px-3 py-2 text-gray-600">
-                                    {user.name}님
-                                </div>
-                                <Button
-                                    variant="outline"
-                                    className="w-full"
-                                    onClick={() => {
-                                        logout();
-                                        setIsMenuOpen(false);
-                                    }}
-                                >
-                                    로그아웃
-                                </Button>
-                            </>
-                        )}
                     </div>
                 </div>
             )}
