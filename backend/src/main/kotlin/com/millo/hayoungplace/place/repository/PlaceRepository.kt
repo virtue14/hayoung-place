@@ -2,6 +2,7 @@ package com.millo.hayoungplace.place.repository
 
 import com.millo.hayoungplace.place.domain.Place
 import com.millo.hayoungplace.place.domain.PlaceCategory
+import com.millo.hayoungplace.place.domain.SubCategory
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.mongodb.repository.MongoRepository
@@ -21,13 +22,7 @@ interface PlaceRepository : MongoRepository<Place, String> {
      */
     fun findByCategory(category: PlaceCategory, pageable: Pageable): Page<Place>
 
-    /**
-     * 특정 사용자가 등록한 장소 목록을 페이징하여 조회합니다.
-     * @param userId 조회할 사용자 ID
-     * @param pageable 페이징 정보
-     * @return 페이징된 장소 목록
-     */
-    fun findByCreatedBy(userId: String, pageable: Pageable): Page<Place>
+
 
     /**
      * 특정 위치 근처의 장소들을 조회합니다.
@@ -72,4 +67,21 @@ interface PlaceRepository : MongoRepository<Place, String> {
 
     fun findAllByOrderByCreatedAtDesc(): List<Place>
     fun findByCategory(category: PlaceCategory): List<Place>
+
+    /**
+     * 카테고리와 서브카테고리로 장소 목록을 페이징하여 조회합니다.
+     * @param category 조회할 장소 카테고리
+     * @param subCategory 조회할 서브카테고리
+     * @param pageable 페이징 정보
+     * @return 페이징된 장소 목록
+     */
+    fun findByCategoryAndSubCategory(category: PlaceCategory, subCategory: SubCategory, pageable: Pageable): Page<Place>
+
+    /**
+     * 서브카테고리로 장소 목록을 조회합니다.
+     * @param subCategory 조회할 서브카테고리
+     * @param pageable 페이징 정보
+     * @return 페이징된 장소 목록
+     */
+    fun findBySubCategory(subCategory: SubCategory, pageable: Pageable): Page<Place>
 }

@@ -3,9 +3,13 @@ package com.millo.hayoungplace.place.controller
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.millo.hayoungplace.place.domain.Place
 import com.millo.hayoungplace.place.domain.PlaceCategory
+import com.millo.hayoungplace.place.domain.SubCategory
+import com.millo.hayoungplace.place.domain.CategorySubCategoryMapping
 import com.millo.hayoungplace.place.dto.PasswordRequest
 import com.millo.hayoungplace.place.service.InvalidPasswordException
 import com.millo.hayoungplace.place.service.PlaceService
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
@@ -23,6 +27,10 @@ import org.springframework.web.bind.annotation.*
 class PlaceController(
     private val placeService: PlaceService
 ) {
+    companion object {
+        private val logger: Logger = LoggerFactory.getLogger(PlaceController::class.java)
+    }
+
     private val objectMapper = jacksonObjectMapper()
 
     @Operation(
@@ -45,7 +53,9 @@ class PlaceController(
         @Parameter(description = "조회할 장소 ID")
         @PathVariable id: String
     ): ResponseEntity<Place> {
+        logger.info("Received request to get place by id: $id")
         val place = placeService.incrementViewCount(id)
+        logger.info("Returning place with view count: ${place.viewCount}")
         return ResponseEntity.ok(place)
     }
 
@@ -169,5 +179,51 @@ class PlaceController(
         } catch (e: NoSuchElementException) {
             ResponseEntity.status(HttpStatus.NOT_FOUND).body(mapOf("error" to e.message) as Map<String, Any>)
         }
+    }
+
+    @Operation(
+        summary = "카테고리별 서브카테고리 목록 조회",
+        description = "특정 카테고리에 속한 서브카테고리 목록을 조회합니다."
+    )
+    @GetMapping("/categories/{category}/subcategories")
+    fun getSubCategories(
+        @Parameter(description = "조회할 장소 카테고리")
+        @PathVariable category: String
+    ): ResponseEntity<List<SubCategory>> {
+        val categoryEnum = PlaceCategory.valueOf(category.uppercase())
+        val subCategories = CategorySubCategoryMapping.getSubCategories(categoryEnum)
+        return ResponseEntity.ok(subCategories)
+    }
+
+    @Operation(
+        summary = "서브카테고리로 장소 목록 조회",
+        description = "특정 카테고리와 서브카테고리에 속한 장소 목록을 페이징하여 조회합니다."
+    )
+    @GetMapping("/category/{category}/subcategory/{subCategory}")
+    fun getPlacesByCategoryAndSubCategory(
+        @Parameter(description = "조회할 장소 카테고리")
+        @PathVariable category: String,
+        @Parameter(description = "조회할 서브카테고리")
+        @PathVariable subCategory: String,
+        @PageableDefault(size = 20) pageable: Pageable
+    ): ResponseEntity<Page<Place>> {
+        val categoryEnum = PlaceCategory.valueOf(category.uppercase())
+        val subCategoryEnum = SubCategory.valueOf(subCategory.uppercase())
+
+        // 카테고리와 서브카테고리 매핑 검증
+        if (!CategorySubCategoryMapping.isValidSubCategory(categoryEnum, subCategoryEnum)) {
+            return ResponseEntity.badRequest().build()
+        }
+
+        return ResponseEntity.ok(placeService.getPlacesByCategoryAndSubCategory(categoryEnum, subCategoryEnum, pageable))
+    }
+
+    @Operation(
+        summary = "모든 카테고리와 서브카테고리 매핑 조회",
+        description = "전체 카테고리별 서브카테고리 매핑 정보를 조회합니다."
+    )
+    @GetMapping("/categories")
+    fun getAllCategoriesWithSubCategories(): ResponseEntity<Map<PlaceCategory, List<SubCategory>>> {
+        return ResponseEntity.ok(CategorySubCategoryMapping.mappings)
     }
 }

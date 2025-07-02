@@ -3,7 +3,11 @@ package com.millo.hayoungplace.place.service
 import com.millo.hayoungplace.place.domain.Location
 import com.millo.hayoungplace.place.domain.Place
 import com.millo.hayoungplace.place.domain.PlaceCategory
+import com.millo.hayoungplace.place.domain.SubCategory
+import com.millo.hayoungplace.place.domain.CategorySubCategoryMapping
 import com.millo.hayoungplace.place.repository.PlaceRepository
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
@@ -31,6 +35,10 @@ class InvalidPasswordException(message: String) : RuntimeException(message)
 class PlaceService(
     private val placeRepository: PlaceRepository
 ) {
+    companion object {
+        private val logger: Logger = LoggerFactory.getLogger(PlaceService::class.java)
+    }
+
     // 이미지 저장 경로 설정
     private val uploadDir = Paths.get("uploads/images")
 
@@ -84,7 +92,7 @@ class PlaceService(
             .orElseThrow { NoSuchElementException("Place not found with id: $id") }
     }
 
-    /**
+        /**
      * 장소 조회수를 증가시킵니다.
      * @param id 조회수를 증가시킬 장소 ID
      * @return 조회수가 증가된 장소 정보
@@ -92,15 +100,22 @@ class PlaceService(
      */
     @Transactional
     fun incrementViewCount(id: String): Place {
+        logger.info("Incrementing view count for place: $id")
+
         val place = placeRepository.findById(id)
             .orElseThrow { NoSuchElementException("Place not found with id: $id") }
 
+        logger.info("Current view count for place $id: ${place.viewCount}")
+
         val updatedPlace = place.copy(
-            viewCount = place.viewCount + 1,
-            updatedAt = java.time.LocalDateTime.now()
+            viewCount = place.viewCount + 1
+            // updatedAt은 변경하지 않음 (조회수 증가는 정보 수정이 아님)
         )
 
-        return placeRepository.save(updatedPlace)
+        val savedPlace = placeRepository.save(updatedPlace)
+        logger.info("Updated view count for place $id: ${savedPlace.viewCount}")
+
+        return savedPlace
     }
 
     /**
@@ -112,6 +127,18 @@ class PlaceService(
     @Transactional(readOnly = true)
     fun getPlacesByCategory(category: PlaceCategory, pageable: Pageable): Page<Place> {
         return placeRepository.findByCategory(category, pageable)
+    }
+
+    /**
+     * 카테고리와 서브카테고리별 장소 목록을 조회합니다.
+     * @param category 조회할 장소 카테고리
+     * @param subCategory 조회할 서브카테고리
+     * @param pageable 페이징 정보
+     * @return 페이징된 장소 목록
+     */
+    @Transactional(readOnly = true)
+    fun getPlacesByCategoryAndSubCategory(category: PlaceCategory, subCategory: SubCategory, pageable: Pageable): Page<Place> {
+        return placeRepository.findByCategoryAndSubCategory(category, subCategory, pageable)
     }
 
     /**
@@ -162,21 +189,6 @@ class PlaceService(
             }
         }
 
-        // 모든 사용자가 익명으로 장소를 등록할 수 있습니다
-        val createdByUserId = "anonymous"
-
-        // 이미지 파일 저장 및 URL 생성 (이미지가 있는 경우에만)
-        val photos = if (images.isNotEmpty()) {
-            images.map { file ->
-                val fileName = "${UUID.randomUUID()}_${file.originalFilename}"
-                val filePath = uploadDir.resolve(fileName)
-                Files.copy(file.inputStream, filePath)
-                "/images/$fileName"
-            }
-        } else {
-            emptyList()
-        }
-
         val longitude = when (val lon = placeData["longitude"]) {
             is Double -> lon
             is String -> lon.toDoubleOrNull() ?: throw IllegalArgumentException("Invalid longitude")
@@ -191,16 +203,28 @@ class PlaceService(
             else -> throw IllegalArgumentException("Invalid latitude")
         }
 
+        // 카테고리 및 서브카테고리 검증
+        val category = PlaceCategory.valueOf(placeData["category"] as String)
+        val subCategory = if (placeData.containsKey("subCategory") && placeData["subCategory"] != null) {
+            val subCat = SubCategory.valueOf(placeData["subCategory"] as String)
+            // 카테고리와 서브카테고리 매핑 검증
+            if (!CategorySubCategoryMapping.isValidSubCategory(category, subCat)) {
+                throw IllegalArgumentException("유효하지 않은 카테고리-서브카테고리 조합입니다")
+            }
+            subCat
+        } else {
+            SubCategory.NONE
+        }
+
         // Place 객체 생성
         val place = Place(
             name = name,
             address = address,
             location = Location(coordinates = listOf(longitude, latitude)),
             placeUrl = placeUrl,
-            category = PlaceCategory.valueOf(placeData["category"] as String),
+            category = category,
+            subCategory = subCategory,
             description = placeData["description"] as String,
-            photos = photos,
-            createdBy = createdByUserId,
             password = hashPassword(password)
         )
 
@@ -245,6 +269,19 @@ class PlaceService(
             throw InvalidPasswordException("비밀번호가 일치하지 않습니다")
         }
 
+        // 카테고리 및 서브카테고리 검증
+        val category = PlaceCategory.valueOf(placeData["category"] as String)
+        val subCategory = if (placeData.containsKey("subCategory") && placeData["subCategory"] != null) {
+            val subCat = SubCategory.valueOf(placeData["subCategory"] as String)
+            // 카테고리와 서브카테고리 매핑 검증
+            if (!CategorySubCategoryMapping.isValidSubCategory(category, subCat)) {
+                throw IllegalArgumentException("유효하지 않은 카테고리-서브카테고리 조합입니다")
+            }
+            subCat
+        } else {
+            SubCategory.NONE
+        }
+
         // 수정한 필드만 업데이트
         val updatedPlace = existingPlace.copy(
             name = placeData["name"] as String,
@@ -256,7 +293,8 @@ class PlaceService(
                 )
             ),
             placeUrl = placeData["placeUrl"] as String,
-            category = PlaceCategory.valueOf(placeData["category"] as String),
+            category = category,
+            subCategory = subCategory,
             description = placeData["description"] as String,
             updatedAt = java.time.LocalDateTime.now()
         )
